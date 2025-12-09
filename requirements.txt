@@ -1,0 +1,15 @@
+fastapi
+uvicorn[standard]
+sqlmodel
+asyncpg
+alembic
+redis
+fastapi-mail
+pydantic-settings
+python-multipart
+email-validator
+httpx
+pytest
+pytest-asyncio
+typer
+rich
