@@ -1,28 +1,179 @@
-from typing import Generic, TypeVar, Optional, Any, List
-from pydantic import BaseModel
-from enum import Enum
+"""
+Standardized response schemas for API responses.
+"""
+from typing import Any, Dict, List, Optional
+from pydantic import BaseModel, Field
 
-T = TypeVar("T")
+from app.constants.error_codes import ErrorCode
 
-class ResponseModel(BaseModel, Generic[T]):
-    data: Optional[T] = None
-    message: str = "Success"
-    success: bool = True
-
-class ErrorCode(str, Enum):
-    VALIDATION_ERROR = "VALIDATION_ERROR"
-    AUTHENTICATION_ERROR = "AUTHENTICATION_ERROR"
-    AUTHORIZATION_ERROR = "AUTHORIZATION_ERROR"
-    NOT_FOUND_ERROR = "NOT_FOUND_ERROR"
-    INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR"
-    BAD_REQUEST_ERROR = "BAD_REQUEST_ERROR"
 
 class ErrorDetail(BaseModel):
-    code: ErrorCode
-    message: str
-    details: Optional[Any] = None
+    """Error detail schema."""
+    code: str = Field(..., description="Error code (e.g., AUTH_001)")
+    message: str = Field(..., description="Human-readable error message")
+    field: Optional[str] = Field(None, description="Field name if validation error")
 
-class ErrorResponseModel(BaseModel):
-    success: bool = False
-    message: str
+
+class ErrorResponse(BaseModel):
+    """Standardized error response."""
+    success: bool = Field(False, description="Always false for errors")
     error: ErrorDetail
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional error context")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": False,
+                "error": {
+                    "code": "AUTH_001",
+                    "message": "Invalid credentials",
+                    "field": None
+                },
+                "details": None
+            }
+        }
+
+
+class ValidationErrorResponse(BaseModel):
+    """Validation error response with multiple field errors."""
+    success: bool = Field(False, description="Always false for errors")
+    error: ErrorDetail = Field(
+        default=ErrorDetail(
+            code="VALIDATION_ERROR",
+            message="Request validation failed"
+        )
+    )
+    errors: List[ErrorDetail] = Field(..., description="List of validation errors")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Request validation failed"
+                },
+                "errors": [
+                    {
+                        "code": "FIELD_REQUIRED",
+                        "message": "Email is required",
+                        "field": "email"
+                    },
+                    {
+                        "code": "FIELD_INVALID",
+                        "message": "Password must be at least 8 characters",
+                        "field": "password"
+                    }
+                ]
+            }
+        }
+
+
+class SuccessResponse(BaseModel):
+    """Generic success response."""
+    success: bool = Field(True, description="Always true for success")
+    message: str = Field(..., description="Success message")
+    data: Optional[Any] = Field(None, description="Response data")
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Operation completed successfully",
+                "data": None
+            }
+        }
+
+
+class PaginatedResponse(BaseModel):
+    """Paginated response wrapper."""
+    success: bool = Field(True, description="Always true for success")
+    data: List[Any] = Field(..., description="List of items")
+    pagination: Dict[str, int] = Field(
+        ...,
+        description="Pagination metadata"
+    )
+    
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "data": [],
+                "pagination": {
+                    "total": 100,
+                    "page": 1,
+                    "per_page": 20,
+                    "pages": 5
+                }
+            }
+        }
+
+
+# Helper functions to create error responses
+def create_error_response(
+    code: str,
+    message: str,
+    field: Optional[str] = None,
+    details: Optional[Dict[str, Any]] = None
+) -> ErrorResponse:
+    """
+    Create a standardized error response.
+    
+    Args:
+        code: Error code
+        message: Error message
+        field: Field name if validation error
+        details: Additional error context
+        
+    Returns:
+        ErrorResponse instance
+    """
+    return ErrorResponse(
+        error=ErrorDetail(code=code, message=message, field=field),
+        details=details
+    )
+
+
+def create_validation_error_response(
+    errors: List[Dict[str, str]]
+) -> ValidationErrorResponse:
+    """
+    Create a validation error response.
+    
+    Args:
+        errors: List of error dictionaries with 'code', 'message', 'field'
+        
+    Returns:
+        ValidationErrorResponse instance
+    """
+    error_details = [
+        ErrorDetail(
+            code=err.get("code", ErrorCode.FIELD_INVALID),
+            message=err["message"],
+            field=err.get("field")
+        )
+        for err in errors
+    ]
+    
+    return ValidationErrorResponse(errors=error_details)
+
+
+def create_success_response(
+    message: str,
+    data: Optional[Any] = None
+) -> SuccessResponse:
+    """
+    Create a success response.
+    
+    Args:
+        message: Success message
+        data: Response data
+        
+    Returns:
+        SuccessResponse instance
+    """
+    return SuccessResponse(message=message, data=data)
+
+
+# Backward compatibility alias
+ResponseModel = SuccessResponse

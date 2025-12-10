@@ -1,122 +1,144 @@
-# Production Ready FastAPI Project
+# FastAPI Authentication System
 
-A robust, production-ready FastAPI boilerplate featuring Async PostgreSQL, Redis caching, Docker support, and comprehensive testing.
+## Quick Start
+
+### 1. Setup Environment
+
+```bash
+# Copy environment file
+cp .env.example .env
+
+# Update .env with your settings (especially SECRET_KEY, DATABASE_URL, REDIS_URL)
+```
+
+### 2. Install Dependencies
+
+```bash
+# Production dependencies
+pip install -r requirements.txt
+
+# Test dependencies (optional)
+pip install -r requirements-test.txt
+```
+
+### 3. Start Services
+
+```bash
+# Start with Docker Compose
+docker-compose -f docker-compose.dev.yml up --build
+```
+
+### 4. Initialize Database
+
+The database tables are automatically created on application startup via the lifespan handler.
+
+### 5. Seed Default Data
+
+```bash
+# Seed default roles, permissions, and OAuth providers
+python scripts/seed_data.py
+```
+
+This creates:
+- **Permissions**: All predefined permission scopes
+- **Roles**: SUPER_ADMIN, MANAGER, SUPPORT
+- **OAuth Providers**: Google, GitHub (remember to update credentials!)
+
+## API Documentation
+
+Once running, visit:
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+## Authentication Endpoints
+
+### Registration & Login
+- `POST /api/v1/auth/register` - Register new customer
+- `POST /api/v1/auth/login` - Login (returns access token + sets refresh token cookie)
+- `POST /api/v1/auth/verify-email` - Verify email with OTP
+- `POST /api/v1/auth/resend-otp` - Resend OTP
+
+### Token Management
+- `POST /api/v1/auth/refresh` - Refresh access token (reads from cookie)
+- `POST /api/v1/auth/logout` - Logout (blacklists token + revokes refresh tokens)
+- `GET /api/v1/auth/me` - Get current user info
+
+### Password Reset
+- `POST /api/v1/auth/forgot-password` - Request password reset OTP
+- `POST /api/v1/auth/reset-password` - Reset password with OTP
+
+## Testing
+
+```bash
+# Run all tests
+pytest tests/ -v
+
+# Run with coverage
+pytest tests/ --cov=app --cov-report=html
+
+# Run specific test file
+pytest tests/test_auth.py -v
+```
 
 ## Features
 
--   **FastAPI**: High performance, easy to learn, fast to code, ready for production.
--   **Async PostgreSQL**: Using `SQLModel` and `asyncpg` for non-blocking database operations.
--   **Redis Caching**: Integrated caching support.
--   **Alembic Migrations**: Database schema version control.
--   **Docker**: Optimized configurations for Development and Production.
--   **Testing**: Pytest suite with automated test database management.
--   **Standardized Responses**: Consistent success and error response formats.
--   **Email**: Integrated email sending utility.
+✅ **JWT Authentication** - Access tokens (15min) + refresh tokens (7 days)
+✅ **Email Verification** - OTP-based email verification
+✅ **Password Reset** - Secure OTP-based password reset
+✅ **Token Rotation** - Refresh token rotation with reuse detection
+✅ **Token Blacklist** - Immediate logout via Redis blacklist
+✅ **Rate Limiting** - OTP generation/verification rate limits
+✅ **RBAC** - Role-based access control with dynamic permissions
+✅ **Redis Caching** - Permission caching for performance
+✅ **Standard Responses** - Consistent API response format
+✅ **Comprehensive Errors** - Detailed error codes and messages
+✅ **Swagger Integration** - Full API documentation
 
-## Prerequisites
+## Security Features
 
--   [Docker](https://www.docker.com/) and [Docker Compose](https://docs.docker.com/compose/)
--   Python 3.11+ (for local development without Docker)
-
-## Quick Start (Docker)
-
-The easiest way to run the project is using Docker Compose.
-
-### Development
-Starts the app in reload mode with a local PostgreSQL and Redis instance.
-
-1.  **Configure Environment**:
-    ```bash
-    cp .env.example .env
-    ```
-
-2.  **Run Containers**:
-    ```bash
-    docker-compose -f docker-compose.dev.yml up --build
-    ```
-
--   **API**: [http://localhost:8000](http://localhost:8000)
--   **Docs (Swagger UI)**: [http://localhost:8000/docs](http://localhost:8000/docs)
--   **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
-
-### Production
-Starts the app in production mode (no reload, optimized build).
-
-```bash
-docker-compose -f docker-compose.yml up --build -d
-```
-
-## Local Development
-
-If you prefer running locally without Docker:
-
-1.  **Create Virtual Environment**:
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-2.  **Install Dependencies**:
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-3.  **Start Services**:
-    Ensure you have PostgreSQL and Redis running locally. Update `.env` with your local credentials.
-
-4.  **Run Migrations**:
-    ```bash
-    alembic upgrade head
-    ```
-
-5.  **Run Application**:
-    ```bash
-    uvicorn app.main:app --reload
-    ```
-
-## Running Tests
-
-Tests are powered by `pytest` and run in an isolated environment.
-
-**Using Docker (Recommended):**
-```bash
-docker-compose -f docker-compose.dev.yml run --rm -e PYTHONPATH=. -e POSTGRES_SERVER=db web pytest
-```
-
-**Locally:**
-Ensure your local DB credentials in `.env` are correct, then:
-```bash
-pytest
-```
-
-## CLI Tool
-
-The project includes a `manage.py` CLI tool to simplify common tasks.
-
-```bash
-# Install dependencies first (including typer)
-pip install -r requirements.txt
-
-# Run the server (Dev)
-./manage.py run
-
-# Run tests (Docker)
-./manage.py test
-
-# Run tests (Local)
-./manage.py test --no-docker
-
-# Create a migration
-./manage.py migrate -m "Add user table"
-
-# Apply migrations
-./manage.py upgrade
-
-# Docker management
-./manage.py docker up
-./manage.py docker down
-```
+- ✅ Bcrypt password hashing
+- ✅ JWT tokens with expiry
+- ✅ HttpOnly cookies for refresh tokens
+- ✅ Token rotation and family revocation
+- ✅ OTP rate limiting (cooldown + max attempts)
+- ✅ Account lockout after failed OTP attempts
+- ✅ Token blacklist for immediate logout
+- ✅ No email enumeration in password reset
 
 ## Project Structure
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for a detailed breakdown of the project structure and development guidelines.
+```
+app/
+├── api/v1/endpoints/     # API endpoints
+├── constants/            # Constants (enums, error codes, permissions)
+├── core/                 # Core utilities (config, security, cache, etc.)
+├── models/               # SQLModel database models
+├── repositories/         # Data access layer
+├── schemas/              # Pydantic request/response schemas
+└── services/             # Business logic layer
+
+scripts/
+├── init_db.py           # Initialize database tables
+└── seed_data.py         # Seed default data
+
+tests/
+└── test_auth.py         # Authentication tests
+```
+
+## Next Steps
+
+1. **Update OAuth Credentials**: Edit OAuth providers in database with real client IDs/secrets
+2. **Create Super Admin**: Register first admin user or create via database
+3. **Configure Email**: Implement email sending service for OTPs
+4. **Deploy**: Set up production environment with proper secrets
+
+## Environment Variables
+
+See `.env.example` for all available configuration options.
+
+Key variables:
+- `SECRET_KEY` - JWT signing key (generate with `openssl rand -hex 32`)
+- `DATABASE_URL` - PostgreSQL connection string
+- `REDIS_URL` - Redis connection string
+- `ACCESS_TOKEN_EXPIRE_MINUTES` - Access token expiry (default: 15)
+- `REFRESH_TOKEN_EXPIRE_DAYS` - Refresh token expiry (default: 7)

@@ -39,6 +39,18 @@ class Settings(BaseSettings):
     MAIL_SSL_TLS: bool = False
     MAIL_FROM_NAME: str = "FastAPI App"
 
+    # Authentication
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # OTP
+    OTP_LENGTH: int = 6
+    OTP_EXPIRE_MINUTES: int = 10
+    OTP_MAX_ATTEMPTS: int = 3
+    OTP_RESEND_COOLDOWN_SECONDS: int = 60
+
     model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
 
 settings = Settings()

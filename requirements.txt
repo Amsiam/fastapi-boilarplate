@@ -13,3 +13,7 @@ pytest
 pytest-asyncio
 typer
 rich
+# Auth dependencies
+bcrypt
+python-jose[cryptography]
+slowapi
