@@ -205,7 +205,12 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     
     # SUPER_ADMIN has all permissions
     if role.name == "SUPER_ADMIN":
-        permissions = ["*"]
+        # Fetch all permissions from database to be explicit (ACID/Consistency)
+        from app.repositories import PermissionRepository
+        perm_repo = PermissionRepository(db)
+        all_perms = await perm_repo.list_all()
+        permissions = [p.code for p in all_perms]
+        
         # Cache for 5 minutes
         await set_cache(cache_key, permissions, expire=300)
         return permissions

@@ -1,18 +1,19 @@
-fastapi
+fastapi[standard]
 uvicorn[standard]
 sqlmodel
 asyncpg
 alembic
-redis
-fastapi-mail
 pydantic-settings
+python-jose[cryptography]
+bcrypt
+redis
 python-multipart
+jinja2
 email-validator
 httpx
 pytest
 pytest-asyncio
 typer
-rich
 # Auth dependencies
 bcrypt
 python-jose[cryptography]

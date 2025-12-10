@@ -1,25 +1,26 @@
 """
-Database initialization on startup.
-This will create tables if they don't exist.
+FastAPI lifespan event handler.
 """
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
-
-from app.core.database import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
-    Lifespan event handler for FastAPI.
-    Runs on startup and shutdown.
+    Lifespan event handler for FastAPI application.
+    Handles startup and shutdown events.
     """
-    # Startup: Create database tables
-    print("🔄 Initializing database...")
-    await init_db()
-    print("✅ Database initialized successfully!")
+    # Startup
+    print("🚀 Application starting up...")
+    
+    # NOTE: Database tables are managed by Alembic migrations
+    # Run: alembic upgrade head
+    # For development auto-creation, uncomment below:
+    # from app.core.database import init_db
+    # await init_db()
     
     yield
     
-    # Shutdown: cleanup if needed
-    print("👋 Shutting down...")
+    # Shutdown
+    print("👋 Application shutting down...")

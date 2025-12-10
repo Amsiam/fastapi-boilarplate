@@ -70,7 +70,7 @@ class RoleService:
                 "id": str(role.id),
                 "name": role.name,
                 "description": role.description,
-                "is_system_role": role.is_system_role,
+                "is_system_role": role.is_system,
                 "permission_count": count,
                 "created_at": role.created_at.isoformat()
             }
@@ -105,7 +105,7 @@ class RoleService:
             "id": str(role.id),
             "name": role.name,
             "description": role.description,
-            "is_system_role": role.is_system_role,
+            "is_system_role": role.is_system,
             "permissions": [
                 {"id": str(p.id), "code": p.code, "description": p.description}
                 for p in permissions
@@ -141,7 +141,7 @@ class RoleService:
                 message="Role not found"
             )
         
-        if role.is_system_role:
+        if role.is_system:
             raise ValidationError(
                 error_code=ErrorCode.CANNOT_MODIFY_SYSTEM_ROLE,
                 message="Cannot modify system roles"
@@ -174,7 +174,7 @@ class RoleService:
                 message="Role not found"
             )
         
-        if role.is_system_role:
+        if role.is_system:
             raise ValidationError(
                 error_code=ErrorCode.CANNOT_MODIFY_SYSTEM_ROLE,
                 message="Cannot delete system roles"

@@ -341,16 +341,39 @@ async def logout(
         errors=(401,)
     )
 )
-async def get_current_user_info(current_user = Depends(get_current_verified_user)):
+async def get_current_user_info(
+    current_user = Depends(get_current_verified_user),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Get current authenticated user information.
     
     - Requires valid access token
     - Requires verified email
-    - Returns user profile data
+    - Returns user profile data (including permissions for admins)
     """
     user_data = UserResponse.model_validate(current_user)
+    
+    # If user is admin, fetch role name and permissions
+    from app.constants.enums import UserRole
+    if current_user.role == UserRole.ADMIN:
+        # Get permissions
+        from app.core.permissions import get_user_permissions
+        permissions = await get_user_permissions(current_user, db)
+        user_data.permissions = permissions
+        
+        # Get role name
+        from app.repositories import AdminRepository, RoleRepository
+        admin_repo = AdminRepository(db)
+        role_repo = RoleRepository(db)
+        
+        admin = await admin_repo.get_by_user_id(current_user.id)
+        if admin:
+            role = await role_repo.get(admin.role_id)
+            if role:
+                user_data.role_name = role.name
+    
     return SuccessResponse(
         message="User retrieved successfully",
-        data=user_data.model_dump()
+        data=user_data.model_dump(exclude_none=True)
     )

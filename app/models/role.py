@@ -29,10 +29,10 @@ class Permission(SQLModel, table=True):
     __tablename__ = "permissions"
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    code: str = Field(unique=True, index=True, max_length=100)  # e.g., "users:read"
-    description: Optional[str] = Field(default=None, max_length=500)
-    resource: str = Field(max_length=50)  # e.g., "users"
-    action: str = Field(max_length=50)  # e.g., "read"
+    code: str = Field(unique=True, index=True)  # e.g., "users:read"
+    description: str
+    resource: Optional[str] = Field(default=None, max_length=50)  # e.g., "users" (optional, can be derived from code)
+    action: Optional[str] = Field(default=None, max_length=50)    # e.g., "read" (optional, can be derived from code)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     # Relationships

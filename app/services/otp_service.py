@@ -82,6 +82,15 @@ class OTPService:
             expire=settings.OTP_RESEND_COOLDOWN_SECONDS
         )
         
+        # Send OTP via email
+        purpose_map = {
+            OTPType.EMAIL_VERIFICATION: "email verification",
+            OTPType.PASSWORD_RESET: "password reset"
+        }
+        purpose = purpose_map.get(otp_type, "verification")
+        
+        await EmailService.send_otp_email(email, otp_code, purpose)
+        
         # Increment generation attempts (1 hour expiry)
         await increment_cache(lockout_key, 1)
         from app.core.cache import redis_client

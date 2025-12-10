@@ -28,9 +28,22 @@ pip install -r requirements-test.txt
 docker-compose -f docker-compose.dev.yml up --build
 ```
 
-### 4. Initialize Database
+### 4. Run Database Migrations
 
-The database tables are automatically created on application startup via the lifespan handler.
+```bash
+# Generate initial migration (first time only)
+alembic revision --autogenerate -m "Initial migration"
+
+# Apply migrations
+alembic upgrade head
+```
+
+**Note:** We use Alembic for database migrations instead of auto-creating tables. This provides:
+- Version-controlled schema changes
+- Rollback capability
+- Production-safe deployments
+
+See [`docs/alembic_guide.md`](docs/alembic_guide.md) for detailed migration guide.
 
 ### 5. Seed Default Data
 
@@ -43,6 +56,53 @@ This creates:
 - **Permissions**: All predefined permission scopes
 - **Roles**: SUPER_ADMIN, MANAGER, SUPPORT
 - **OAuth Providers**: Google, GitHub (remember to update credentials!)
+
+### 6. Create Superuser
+
+```bash
+# Interactive prompt
+python scripts/create_superuser.py
+
+# Or with environment variables
+SUPERUSER_EMAIL=admin@example.com \
+SUPERUSER_USERNAME=admin \
+SUPERUSER_PASSWORD=SecurePass123! \
+SUPERUSER_NAME="Admin User" \
+python scripts/create_superuser.py
+```
+
+This creates an admin account with SUPER_ADMIN role for initial system access.
+
+### 7. (Optional) Add Database Indexes for Production
+
+```bash
+# Add recommended indexes for optimal performance
+python scripts/add_indexes.py
+```
+
+**Performance Impact:**
+- User login: 10-100x faster
+- Token refresh: 10-20x faster
+- Permission checks: 5-10x faster
+
+### 8. (Optional) Configure Email Service
+
+By default, OTP codes are printed to console. To send actual emails:
+
+1. Update `.env` with your SMTP credentials:
+```env
+EMAIL_ENABLED=true
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-password
+SMTP_FROM_EMAIL=noreply@yourapp.com
+```
+
+**For Gmail:**
+- Enable 2-factor authentication
+- Generate an [App Password](https://myaccount.google.com/apppasswords)
+- Use the app password in `SMTP_PASSWORD`
 
 ## API Documentation
 

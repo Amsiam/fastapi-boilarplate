@@ -58,10 +58,15 @@ class OAuthCallbackRequest(BaseModel):
 
 # ============= Response Schemas =============
 
-class TokenResponse(BaseModel):
+class Token(BaseModel):
     """Token response."""
     access_token: str
     token_type: str = "bearer"
+
+
+class TokenResponse(Token):
+    """Token response (alias for backward compatibility)."""
+    pass
 
 
 class UserResponse(BaseModel):
@@ -71,10 +76,14 @@ class UserResponse(BaseModel):
     is_active: bool
     is_verified: bool
     role: str
+    role_name: Optional[str] = None
+    permissions: Optional[list[str]] = None
     created_at: datetime
     
     class Config:
         from_attributes = True
+
+
 
 
 class CustomerResponse(BaseModel):

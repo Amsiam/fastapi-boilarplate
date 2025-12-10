@@ -29,15 +29,17 @@ class Settings(BaseSettings):
     REDIS_HOST: str
     REDIS_PORT: int
 
-    # Email
-    MAIL_USERNAME: str
-    MAIL_PASSWORD: str
-    MAIL_FROM: EmailStr
-    MAIL_PORT: int
-    MAIL_SERVER: str
-    MAIL_STARTTLS: bool = True
-    MAIL_SSL_TLS: bool = False
-    MAIL_FROM_NAME: str = "FastAPI App"
+    # Email (SMTP configuration)
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USER: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_FROM_NAME: str = "FastAPI App"
+    EMAIL_ENABLED: bool = False
+    
+    # Frontend URL
+    FRONTEND_URL: str = "http://localhost:3000"
 
     # Authentication
     SECRET_KEY: str
@@ -50,7 +52,15 @@ class Settings(BaseSettings):
     OTP_EXPIRE_MINUTES: int = 10
     OTP_MAX_ATTEMPTS: int = 3
     OTP_RESEND_COOLDOWN_SECONDS: int = 60
+    
+    # App
+    DEBUG: bool = False
 
-    model_config = SettingsConfigDict(case_sensitive=True, env_file=".env")
+    # Allow extra fields from old .env (for backward compatibility)
+    model_config = SettingsConfigDict(
+        case_sensitive=True, 
+        env_file=".env",
+        extra="ignore"  # Ignore extra fields like MAIL_STARTTLS, MAIL_SSL_TLS, APP_NAME, etc.
+    )
 
 settings = Settings()

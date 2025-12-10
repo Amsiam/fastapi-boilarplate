@@ -8,21 +8,22 @@ Usage:
 import asyncio
 import sys
 from pathlib import Path
+from typing import Dict
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import async_session_maker
 from app.models.role import Role, Permission, RolePermission
 from app.models.oauth import OAuthProvider
-from app.constants import PermissionEnum
 from uuid import uuid4
 
 
-async def seed_permissions(session: AsyncSession):
-    """Create default permissions."""
-    print("Creating permissions...")
+async def seed_permissions(session: AsyncSession) -> Dict[str, Permission]:
+    """Create default permissions if they don't exist."""
+    print("Checking permissions...")
     
     permissions_data = [
         # User permissions
@@ -59,81 +60,145 @@ async def seed_permissions(session: AsyncSession):
         ("profile:write", "Update own profile"),
     ]
     
-    created_permissions = {}
+    existing_permissions = {}
+    
+    # Check existing permissions
+    result = await session.execute(select(Permission))
+    for perm in result.scalars().all():
+        existing_permissions[perm.code] = perm
+    
+    created_count = 0
     for code, description in permissions_data:
-        perm = Permission(
-            id=uuid4(),
-            code=code,
-            description=description
-        )
-        session.add(perm)
-        created_permissions[code] = perm
+        if code not in existing_permissions:
+            perm = Permission(
+                id=uuid4(),
+                code=code,
+                description=description
+            )
+            session.add(perm)
+            existing_permissions[code] = perm
+            created_count += 1
     
     await session.commit()
-    print(f"✅ Created {len(permissions_data)} permissions")
-    return created_permissions
+    if created_count > 0:
+        print(f"✅ Created {created_count} new permissions")
+    else:
+        print("✅ Permissions up to date")
+        
+    return existing_permissions
 
 
-async def seed_roles(session: AsyncSession, permissions: dict):
-    """Create default roles with permissions."""
-    print("Creating roles...")
+async def get_or_create_role(
+    session: AsyncSession, 
+    name: str, 
+    description: str, 
+    is_system: bool = False
+) -> Role:
+    """Get existing role or create new one."""
+    result = await session.execute(select(Role).where(Role.name == name))
+    role = result.scalar_one_or_none()
     
-    # SUPER_ADMIN role
-    super_admin = Role(
-        id=uuid4(),
+    if not role:
+        role = Role(
+            id=uuid4(),
+            name=name,
+            description=description,
+            is_system=is_system
+        )
+        session.add(role)
+        await session.commit()
+        await session.refresh(role)
+        print(f"✅ Created role: {name}")
+    else:
+        # Update is_system if needed
+        if role.is_system != is_system:
+            role.is_system = is_system
+            session.add(role)
+            await session.commit()
+            await session.refresh(role)
+            print(f"Updated role {name} is_system={is_system}")
+            
+    return role
+
+
+async def assign_permissions(
+    session: AsyncSession, 
+    role: Role, 
+    permission_codes: list[str], 
+    all_permissions: Dict[str, Permission]
+):
+    """Assign permissions to role if not already assigned."""
+    # Get existing role permissions
+    result = await session.execute(
+        select(RolePermission).where(RolePermission.role_id == role.id)
+    )
+    existing_links = {(rp.role_id, rp.permission_id) for rp in result.scalars().all()}
+    
+    added_count = 0
+    for code in permission_codes:
+        if code in all_permissions:
+            perm = all_permissions[code]
+            if (role.id, perm.id) not in existing_links:
+                rp = RolePermission(
+                    role_id=role.id,
+                    permission_id=perm.id
+                )
+                session.add(rp)
+                existing_links.add((role.id, perm.id))
+                added_count += 1
+    
+    if added_count > 0:
+        await session.commit()
+        print(f"   - Added {added_count} permissions to {role.name}")
+
+
+async def seed_roles(session: AsyncSession, permissions: Dict[str, Permission]):
+    """Create default roles with permissions."""
+    print("Checking roles...")
+    
+    # 1. SUPER_ADMIN role (All permissions)
+    super_admin = await get_or_create_role(
+        session,
         name="SUPER_ADMIN",
         description="Super administrator with all permissions",
-        is_system_role=True
+        is_system=True
     )
-    session.add(super_admin)
+    # Assign ALL permissions
+    await assign_permissions(
+        session, 
+        super_admin, 
+        list(permissions.keys()), 
+        permissions
+    )
     
-    # MANAGER role
-    manager = Role(
-        id=uuid4(),
+    # 2. MANAGER role
+    manager = await get_or_create_role(
+        session,
         name="MANAGER",
         description="Manager with user and content management permissions",
-        is_system_role=True
+        is_system=True
     )
-    session.add(manager)
-    
     manager_perms = [
         "users:read", "users:write",
         "orders:read", "orders:write",
         "products:read", "products:write"
     ]
-    for perm_code in manager_perms:
-        if perm_code in permissions:
-            rp = RolePermission(
-                role_id=manager.id,
-                permission_id=permissions[perm_code].id
-            )
-            session.add(rp)
+    await assign_permissions(session, manager, manager_perms, permissions)
     
-    # SUPPORT role
-    support = Role(
-        id=uuid4(),
+    # 3. SUPPORT role
+    support = await get_or_create_role(
+        session,
         name="SUPPORT",
         description="Support staff with read-only access",
-        is_system_role=True
+        is_system=True
     )
-    session.add(support)
-    
     support_perms = ["users:read", "orders:read"]
-    for perm_code in support_perms:
-        if perm_code in permissions:
-            rp = RolePermission(
-                role_id=support.id,
-                permission_id=permissions[perm_code].id
-            )
-            session.add(rp)
-    
-    await session.commit()
-    print("✅ Created 3 default roles (SUPER_ADMIN, MANAGER, SUPPORT)")
+    await assign_permissions(session, support, support_perms, permissions)
 
 
 async def seed_oauth_providers(session: AsyncSession):
     """Create OAuth provider configurations."""
-    print("Creating OAuth providers...")
+    print("Checking OAuth providers...")
     
     providers = [
         {
@@ -160,16 +225,27 @@ async def seed_oauth_providers(session: AsyncSession):
         }
     ]
     
+    created_count = 0
     for provider_data in providers:
-        provider = OAuthProvider(
-            id=uuid4(),
-            **provider_data
+        # Check if provider exists
+        result = await session.execute(
+            select(OAuthProvider).where(OAuthProvider.name == provider_data["name"])
         )
-        session.add(provider)
+        existing = result.scalar_one_or_none()
+        
+        if not existing:
+            provider = OAuthProvider(
+                id=uuid4(),
+                **provider_data
+            )
+            session.add(provider)
+            created_count += 1
     
     await session.commit()
-    print(f"✅ Created {len(providers)} OAuth providers")
-    print("⚠️  Remember to update client_id and client_secret in the database!")
+    if created_count > 0:
+        print(f"✅ Created {created_count} new OAuth providers")
+    else:
+        print("✅ OAuth providers up to date")
 
 
 async def main():
@@ -187,10 +263,6 @@ async def main():
         await seed_oauth_providers(session)
     
     print("\n✅ Database seeding completed successfully!")
-    print("\n📝 Next steps:")
-    print("1. Update OAuth provider credentials in the database")
-    print("2. Create your first SUPER_ADMIN user via API or database")
-    print("3. Start using the authentication system!")
 
 
 if __name__ == "__main__":

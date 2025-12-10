@@ -6,6 +6,7 @@ from typing import Optional
 from uuid import UUID, uuid4
 
 from sqlmodel import Field, SQLModel
+from sqlalchemy import Column, JSON
 
 
 class OAuthProvider(SQLModel, table=True):
@@ -21,6 +22,7 @@ class OAuthProvider(SQLModel, table=True):
     authorization_url: str = Field(max_length=500)
     token_url: str = Field(max_length=500)
     user_info_url: str = Field(max_length=500)
+    scopes: list[str] = Field(default=[], sa_column=Column(JSON))
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
