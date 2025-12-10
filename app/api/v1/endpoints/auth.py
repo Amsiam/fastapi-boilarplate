@@ -7,6 +7,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import get_current_verified_user, get_current_user
+from app.core.rate_limit import rate_limit
 from app.schemas.auth import (
     UserRegisterRequest,
     LoginRequest,
@@ -35,6 +36,7 @@ router = APIRouter(tags=["Authentication"])
         errors=(409, 422)
     )
 )
+@rate_limit("auth:register")
 async def register(
     request: UserRegisterRequest,
     http_request: Request,
@@ -86,6 +88,7 @@ async def register(
         errors=(401, 403, 422)
     )
 )
+@rate_limit("auth:login")
 async def login(
     request: LoginRequest,
     response: Response,
@@ -149,16 +152,7 @@ async def login(
         errors=(400, 422)
     )
 )
-@router.post(
-    "/verify-email",
-    response_model=SuccessResponse,
-    summary="Verify Email",
-    responses=doc_responses(
-        success_example=None,
-        success_message="Email verified successfully. You can now login.",
-        errors=(400, 422)
-    )
-)
+@rate_limit("auth:verify_email")
 async def verify_email(
     request: EmailVerificationRequest,
     http_request: Request,
@@ -211,6 +205,7 @@ async def verify_email(
         errors=(400, 422, 429)
     )
 )
+@rate_limit("auth:resend_otp")
 async def resend_otp(
     request: ResendOTPRequest,
     http_request: Request,
@@ -435,6 +430,7 @@ async def get_current_user_info(
         errors=(400, 401)
     )
 )
+@rate_limit("auth:change_password", by="user")
 async def change_password(
     request: Request,
     current_password: str,

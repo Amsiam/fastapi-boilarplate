@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     DEBUG: bool = False
 
     # MongoDB
-    MONGO_URI: str = "mongodb://mongo:27017"
+    MONGO_URI: str = "mongodb://localhost:27017"
     MONGO_DB_NAME: str = "audit_logs"
 
     # Allow extra fields from old .env (for backward compatibility)

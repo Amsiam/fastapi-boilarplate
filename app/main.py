@@ -8,7 +8,7 @@ from app.core.lifespan import lifespan
 app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
-    responses=create_error_responses(400, 401, 403, 404, 422, 500),
+    responses=create_error_responses(400, 401, 403, 404, 422, 429, 500),
     lifespan=lifespan  # Auto-initialize database on startup
 )
 
@@ -21,6 +21,10 @@ if settings.BACKEND_CORS_ORIGINS:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+# Add rate limiting middleware (60 requests per minute globally)
+from app.core.rate_limit import RateLimitMiddleware
+app.add_middleware(RateLimitMiddleware, limit=60, window=60)
 
 add_exception_handlers(app)
 
@@ -47,3 +51,4 @@ async def health_check():
 # Include API routes
 from app.api.v1.router import api_router
 app.include_router(api_router, prefix=settings.API_V1_STR)
+

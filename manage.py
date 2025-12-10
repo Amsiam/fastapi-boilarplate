@@ -28,31 +28,36 @@ def run(
     subprocess.run(cmd)
 
 
-@app.command()
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def test(
+    ctx: typer.Context,
     docker: bool = typer.Option(False, "--docker", "-d", help="Run tests in Docker container"),
     watch: bool = typer.Option(False, help="Watch for changes (requires pytest-watch)"),
-    verbose: bool = typer.Option(True, "-v", help="Verbose output"),
 ):
     """Run the test suite."""
     if docker:
         console.print("[green]Running tests in Docker...[/green]")
         cmd = [
             "docker-compose", "-f", "docker-compose.dev.yml", 
-            "run", "--rm", "web", "pytest"
+            "run", "--rm", 
+            "-e", "PYTHONPATH=.", 
+            "-e", "POSTGRES_SERVER=db",
+            "-e", "TESTING=1",  # Disable rate limiting
+            "web", "pytest"
         ]
-        if verbose:
-            cmd.append("-v")
+        cmd.extend(ctx.args)
     else:
         console.print("[green]Running tests locally...[/green]")
+        cmd = ["pytest"]
         if watch:
             cmd = ["ptw"]
-        else:
-            cmd = ["pytest"]
-            if verbose:
-                cmd.append("-v")
-            
-    subprocess.run(cmd)
+        
+        cmd.extend(ctx.args)
+        
+        # Set PYTHONPATH to current directory to resolve 'app' module
+        env = os.environ.copy()
+        env["PYTHONPATH"] = "."
+        subprocess.run(cmd, env=env)
 
 
 @app.command()

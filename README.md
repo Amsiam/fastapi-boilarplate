@@ -182,6 +182,7 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 ### Developer Experience
 - ✅ Swagger/OpenAPI documentation
 - ✅ Consistent API response format
+  - See [Error Codes](docs/error_codes.md) for full list
 - ✅ Database seeders system
 - ✅ Management CLI commands
 

@@ -1,4 +1,8 @@
 import os
+
+# Set test mode flag to disable rate limiting
+os.environ["TESTING"] = "1"
+
 import asyncio
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -37,10 +41,13 @@ async def setup_test_db():
     """Create test database before tests and drop it after."""
     default_engine = create_async_engine(DEFAULT_DATABASE_URL, isolation_level="AUTOCOMMIT")
     
-    async with default_engine.connect() as conn:
-        result = await conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
-        if not result.scalar():
-            await conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+    try:
+        async with default_engine.connect() as conn:
+            result = await conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
+            if not result.scalar():
+                await conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
+    except Exception:
+        raise
     
     await default_engine.dispose()
     
@@ -115,10 +122,14 @@ def setup_mongo_test_db():
     original_db_name = mongodb.db_name
     mongodb.db_name = "test_audit_logs"
     
+    # Force fresh connection
+    mongodb.close()
+    
     yield
     
-    # Restore original
+    # Restore original and close
     mongodb.db_name = original_db_name
+    mongodb.close()
 
 @pytest.fixture(autouse=True)
 async def clean_mongo(setup_mongo_test_db):
@@ -127,18 +138,27 @@ async def clean_mongo(setup_mongo_test_db):
     
     # Ensure connected
     if mongodb.client is None:
-        mongodb.connect()
-        
+        try:
+            mongodb.connect()
+        except Exception:
+            pass
+            
     db = mongodb.get_db()
-    # Be careful: only drop if it's the test DB
-    if db.name == "test_audit_logs":
-        await db["audit_logs"].delete_many({})
+    
+    # Safe cleanup that ignores connection errors
+    if db is not None and db.name == "test_audit_logs":
+        try:
+            await db["audit_logs"].delete_many({})
+        except Exception:
+            pass
         
     yield
     
-    if db.name == "test_audit_logs":
-        await db["audit_logs"].delete_many({})
-    
-    # Close connection to prevent event loop issues between tests
-    mongodb.close()
-
+    # Cleanup after test
+    try:
+        if mongodb.client is not None:
+            db = mongodb.get_db()
+            if db is not None and db.name == "test_audit_logs":
+                await db["audit_logs"].delete_many({})
+    except Exception:
+        pass
