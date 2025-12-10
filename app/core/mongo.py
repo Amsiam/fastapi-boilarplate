@@ -18,6 +18,7 @@ class MongoDB:
         """Close MongoDB connection."""
         if self.client:
             self.client.close()
+            self.client = None
             print("❌ MongoDB connection closed")
 
     def get_db(self):

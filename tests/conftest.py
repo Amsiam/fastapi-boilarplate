@@ -105,3 +105,40 @@ def reset_redis():
     reset_redis_client()
     yield
     reset_redis_client()
+
+@pytest.fixture(autouse=True)
+def setup_mongo_test_db():
+    """Configure MongoDB to use a test database."""
+    from app.core.mongo import mongodb
+    
+    # Store original and set test database name
+    original_db_name = mongodb.db_name
+    mongodb.db_name = "test_audit_logs"
+    
+    yield
+    
+    # Restore original
+    mongodb.db_name = original_db_name
+
+@pytest.fixture(autouse=True)
+async def clean_mongo(setup_mongo_test_db):
+    """Clean MongoDB test database before and after each test."""
+    from app.core.mongo import mongodb
+    
+    # Ensure connected
+    if mongodb.client is None:
+        mongodb.connect()
+        
+    db = mongodb.get_db()
+    # Be careful: only drop if it's the test DB
+    if db.name == "test_audit_logs":
+        await db["audit_logs"].delete_many({})
+        
+    yield
+    
+    if db.name == "test_audit_logs":
+        await db["audit_logs"].delete_many({})
+    
+    # Close connection to prevent event loop issues between tests
+    mongodb.close()
+

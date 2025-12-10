@@ -22,16 +22,7 @@ def oauth_service(session):
 def actor_id():
     return uuid4()
 
-@pytest.fixture(autouse=True)
-async def setup_mongo_connection():
-    """Ensure MongoDB connection is active for tests."""
-    mongodb.connect()
-    # Clear audit logs
-    db = mongodb.get_db()
-    await db["audit_logs"].delete_many({})
-    yield
-    await db["audit_logs"].delete_many({})
-    mongodb.close()
+
 
 @pytest.mark.asyncio
 async def test_role_audit(role_service, actor_id):
@@ -137,3 +128,49 @@ async def test_audit_list_logs(role_service, actor_id):
     assert len(logs) >= 2
     assert logs[0]["action"] == "create_role"
     assert logs[0]["actor_id"] == str(actor_id)
+
+@pytest.fixture
+def auth_service(session):
+    from app.services.auth_service import AuthService
+    return AuthService(session)
+
+@pytest.mark.asyncio
+async def test_auth_audit(auth_service, session):
+    """Test audit logs for user registration and login."""
+    from app.core.security import hash_password
+    from app.models.user import User
+    from app.constants.enums import UserRole
+    
+    # Register Customer
+    email = f"audit_auth_{uuid4()}@example.com"
+    user = await auth_service.register_customer(
+        email=email,
+        password="password123",
+        first_name="Audit",
+        last_name="User"
+    )
+    
+    # Verify Register Log
+    db = mongodb.get_db()
+    logs = await db["audit_logs"].find({"target_id": str(user.id), "action": "register_customer"}).to_list(length=1)
+    assert len(logs) == 1
+    assert logs[0]["details"]["email"] == email
+    
+    # Verify Email (Manually for login)
+    await auth_service.verify_email(str(user.id))
+    
+    # Login
+    await auth_service.authenticate_user(email, "password123")
+    
+    # Verify Login Log
+    logs = await db["audit_logs"].find({"target_id": str(user.id), "action": "user_login"}).to_list(length=1)
+    assert len(logs) == 1
+    assert logs[0]["details"]["email"] == email
+    
+    # Logout
+    await auth_service.logout(str(user.id))
+    
+    # Verify Logout Log
+    logs = await db["audit_logs"].find({"target_id": str(user.id), "action": "user_logout"}).to_list(length=1)
+    assert len(logs) == 1
+

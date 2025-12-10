@@ -53,6 +53,7 @@ class Admin(SQLModel, table=True):
     user_id: UUID = Field(foreign_key="users.id", unique=True, index=True)
     username: str = Field(unique=True, index=True, max_length=100)
     role_id: UUID = Field(foreign_key="roles.id", index=True)
+    is_super_admin: bool = Field(default=False)  # Super admin cannot be edited/deleted
     permission_overrides: Optional[dict] = Field(
         default=None,
         sa_column=Column(JSON)

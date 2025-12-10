@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_db
+from app.core.docs import doc_responses
 from app.schemas.response import SuccessResponse
 from app.schemas.auth import OAuthCallbackRequest, Token
 from app.services.oauth_service import OAuthService
@@ -17,7 +18,12 @@ router = APIRouter(tags=["OAuth"])
 @router.get(
     "/providers",
     response_model=SuccessResponse,
-    summary="List OAuth Providers"
+    summary="List OAuth Providers",
+    responses=doc_responses(
+        success_example=[{"name": "google", "display_name": "Google", "icon": "google-icon"}],
+        success_message="Providers retrieved successfully",
+        errors=(401,)
+    )
 )
 async def list_providers(
     db: AsyncSession = Depends(get_db)
@@ -40,7 +46,12 @@ async def list_providers(
 @router.get(
     "/login/{provider}",
     response_model=SuccessResponse,
-    summary="Get OAuth Login URL"
+    summary="Get OAuth Login URL",
+    responses=doc_responses(
+        success_example={"url": "https://accounts.google.com/o/oauth2/auth?..."},
+        success_message="Login URL generated successfully",
+        errors=(404,)
+    )
 )
 async def get_login_url(
     provider: str,
@@ -69,7 +80,12 @@ async def get_login_url(
 @router.post(
     "/callback",
     response_model=SuccessResponse,
-    summary="OAuth Callback"
+    summary="OAuth Callback",
+    responses=doc_responses(
+        success_example={"access_token": "eyJ...", "token_type": "bearer"},
+        success_message="Login successful",
+        errors=(400, 401, 404)
+    )
 )
 async def oauth_callback(
     request: OAuthCallbackRequest,

@@ -18,7 +18,7 @@ from app.schemas.user import (
     AdminCreate, AdminUpdate, AdminDetailResponse,
     CustomerCreate, CustomerUpdate, CustomerDetailResponse
 )
-from app.core.exceptions import ConflictError, NotFoundError
+from app.core.exceptions import ConflictError, NotFoundError, PermissionDeniedError
 from app.constants import ErrorCode
 from app.models.role import Role
 
@@ -144,6 +144,14 @@ class UserManagementService:
         admin = await self.admin_repo.get(admin_id)
         if not admin:
              raise NotFoundError(message="Admin not found")
+        
+        # Protect super admin from editing (except password)
+        if admin.is_super_admin:
+            raise PermissionDeniedError(
+                error_code=ErrorCode.PERMISSION_DENIED,
+                message="Super admin cannot be edited. Use change password route instead."
+            )
+        
         user = await self.user_repo.get(admin.user_id)
 
         old_values = {
@@ -201,6 +209,13 @@ class UserManagementService:
         admin = await self.admin_repo.get(admin_id)
         if not admin:
              raise NotFoundError(message="Admin not found")
+        
+        # Protect super admin from deletion
+        if admin.is_super_admin:
+            raise PermissionDeniedError(
+                error_code=ErrorCode.PERMISSION_DENIED,
+                message="Super admin cannot be deleted."
+            )
              
         success = await self.user_repo.soft_delete(admin.user_id)
         if not success:

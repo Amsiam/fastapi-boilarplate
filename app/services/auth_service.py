@@ -4,6 +4,7 @@ Authentication service for user registration, login, and token management.
 from datetime import datetime, timedelta
 from typing import Optional, Tuple
 from uuid import uuid4
+from fastapi import Request
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -28,6 +29,7 @@ from app.models.user import User, Customer
 from app.models.auth import RefreshToken
 from app.constants.enums import UserRole
 from app.repositories import UserRepository, CustomerRepository, RefreshTokenRepository
+from app.services.audit_service import audit_service
 
 
 class AuthService:
@@ -46,7 +48,8 @@ class AuthService:
         password: str,
         first_name: str,
         last_name: str,
-        phone_number: Optional[str] = None
+        phone_number: Optional[str] = None,
+        request: Optional[Request] = None
     ) -> User:
         """
         Register a new customer user.
@@ -57,6 +60,7 @@ class AuthService:
             first_name: First name
             last_name: Last name
             phone_number: Optional phone number
+            request: Optional request object for audit logging
             
         Returns:
             Created user
@@ -91,15 +95,35 @@ class AuthService:
         )
         await self.customer_repo.create(customer)
         
+        # Audit Log
+        await audit_service.log_action(
+            action="register_customer",
+            actor_id=user.id,
+            target_id=str(user.id),
+            target_type="user",
+            details={
+                "email": email,
+                "first_name": first_name,
+                "last_name": last_name
+            },
+            request=request
+        )
+        
         return user
     
-    async def authenticate_user(self, email: str, password: str) -> User:
+    async def authenticate_user(
+        self, 
+        email: str, 
+        password: str,
+        request: Optional[Request] = None
+    ) -> User:
         """
         Authenticate user with email and password.
         
         Args:
             email: User email
             password: Plain password
+            request: Optional request object for audit logging
             
         Returns:
             Authenticated user
@@ -120,6 +144,16 @@ class AuthService:
                 error_code=ErrorCode.ACCOUNT_INACTIVE,
                 message="Account is inactive"
             )
+        
+        # Audit Log (Login Success)
+        await audit_service.log_action(
+            action="user_login",
+            actor_id=user.id,
+            target_id=str(user.id),
+            target_type="user",
+            details={"email": email, "role": user.role.value},
+            request=request
+        )
         
         return user
     
@@ -230,12 +264,13 @@ class AuthService:
         if user:
             await self.user_repo.update(user, {"is_verified": True})
     
-    async def logout(self, user_id: str) -> None:
+    async def logout(self, user_id: str, request: Optional[Request] = None) -> None:
         """
         Logout user by revoking all refresh tokens.
         
         Args:
             user_id: User ID
+            request: Optional request object for audit logging
         """
         # Revoke all user tokens
         tokens = await self.token_repo.get_by_user_id(user_id)
@@ -245,6 +280,15 @@ class AuthService:
         # Clear permission cache
         cache_key = user_permissions_key(str(user_id))
         await delete_cache(cache_key)
+        
+        # Audit Log
+        await audit_service.log_action(
+            action="user_logout",
+            actor_id=user_id,
+            target_id=str(user_id),
+            target_type="user",
+            request=request
+        )
     
     async def reset_password(self, email: str, new_password: str) -> None:
         """
@@ -271,3 +315,4 @@ class AuthService:
         
         # Revoke all refresh tokens (force re-login)
         await self.logout(str(user.id))
+

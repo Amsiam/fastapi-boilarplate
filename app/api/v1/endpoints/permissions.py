@@ -1,5 +1,9 @@
 """
 Permission management endpoints for RBAC.
+
+NOTE: Permissions are typically predefined in the system via constants.
+These CRUD endpoints are deprecated and may be removed in future versions.
+Use the list endpoint to view available permissions for role assignment.
 """
 from uuid import UUID
 from fastapi import APIRouter, Depends, status, Request
@@ -14,44 +18,6 @@ from app.services import PermissionService
 from app.constants import PermissionEnum
 
 router = APIRouter(tags=["Permission Management"])
-
-
-@router.post(
-    "",
-    response_model=SuccessResponse,
-    status_code=status.HTTP_201_CREATED,
-    summary="Create Permission",
-    responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "code": "custom:action"},
-        success_message="Permission created successfully",
-        errors=(401, 403, 409, 422)
-    )
-)
-async def create_permission(
-    request: PermissionCreateRequest,
-    req: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(require_permissions([PermissionEnum.PERMISSIONS_WRITE]))
-):
-    """
-    Create a new permission.
-    
-    - Requires `permissions:write` permission
-    - Permission code must be unique
-    - Code format: `resource:action` (e.g., `orders:read`)
-    """
-    perm_service = PermissionService(db)
-    perm_data = await perm_service.create_permission(
-        code=request.code,
-        description=request.description,
-        actor_id=current_user.id,
-        request=req
-    )
-    
-    return SuccessResponse(
-        message="Permission created successfully",
-        data=perm_data
-    )
 
 
 @router.get(
@@ -83,36 +49,27 @@ async def list_permissions(
     )
 
 
-@router.delete(
-    "/{permission_id}",
-    response_model=SuccessResponse,
-    summary="Delete Permission",
-    responses=doc_responses(
-        success_example=None,
-        success_message="Permission deleted successfully",
-        errors=(401, 403, 404)
-    )
-)
-async def delete_permission(
-    permission_id: UUID,
-    req: Request,
-    db: AsyncSession = Depends(get_db),
-    current_user = Depends(require_permissions([PermissionEnum.PERMISSIONS_DELETE]))
-):
-    """
-    Delete a permission.
-    
-    - Requires `permissions:delete` permission
-    - Will remove permission from all roles
-    """
-    perm_service = PermissionService(db)
-    await perm_service.delete_permission(
-        permission_id=permission_id,
-        actor_id=current_user.id,
-        request=req
-    )
-    
-    return SuccessResponse(
-        message="Permission deleted successfully",
-        data=None
-    )
+# NOTE: Create and Delete permission endpoints are deprecated.
+# Permissions should be defined in app/constants/permissions.py and seeded.
+# These endpoints are kept for backwards compatibility but may be removed.
+
+# @router.post(
+#     "",
+#     response_model=SuccessResponse,
+#     status_code=status.HTTP_201_CREATED,
+#     summary="Create Permission (Deprecated)",
+#     deprecated=True,
+# )
+# async def create_permission(...):
+#     """Deprecated: Permissions should be predefined in constants."""
+#     pass
+
+# @router.delete(
+#     "/{permission_id}",
+#     response_model=SuccessResponse,
+#     summary="Delete Permission (Deprecated)",
+#     deprecated=True,
+# )
+# async def delete_permission(...):
+#     """Deprecated: Permissions should be predefined in constants."""
+#     pass

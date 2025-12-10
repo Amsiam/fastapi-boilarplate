@@ -37,6 +37,7 @@ router = APIRouter(tags=["Authentication"])
 )
 async def register(
     request: UserRegisterRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -54,7 +55,8 @@ async def register(
         password=request.password,
         first_name=request.first_name,
         last_name=request.last_name,
-        phone_number=request.phone_number
+        phone_number=request.phone_number,
+        request=http_request
     )
     
     # Generate OTP for email verification
@@ -77,6 +79,7 @@ async def register(
     responses=doc_responses(
         success_example={
             "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
             "token_type": "bearer"
         },
         success_message="Login successful",
@@ -86,23 +89,21 @@ async def register(
 async def login(
     request: LoginRequest,
     response: Response,
+    http_request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Login with email and password.
     
     - Authenticates user credentials
-    - Returns access token (15min expiry) in response body
-    - Sets refresh token in HttpOnly cookie (7 days expiry)
+    - Returns access token (15min expiry) and refresh token (7 days expiry) in response body
+    - Also sets refresh token in HttpOnly cookie for web clients
     - Customers must have verified email
-    
-    **Note:** Refresh token is automatically set in HttpOnly cookie.
-    Use `/auth/refresh` endpoint to get a new access token.
     """
     auth_service = AuthService(db)
     
     # Authenticate user
-    user = await auth_service.authenticate_user(request.username, request.password)
+    user = await auth_service.authenticate_user(request.username, request.password, request=http_request)
     
     # Check email verification for customers
     from app.constants.enums import UserRole
@@ -118,7 +119,7 @@ async def login(
     # Create tokens
     access_token, refresh_token = await auth_service.create_tokens(user)
     
-    # Set refresh token in HttpOnly cookie
+    # Set refresh token in HttpOnly cookie (for web clients)
     response.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -132,6 +133,7 @@ async def login(
         message="Login successful",
         data={
             "access_token": access_token,
+            "refresh_token": refresh_token,
             "token_type": "bearer"
         }
     )
@@ -147,8 +149,19 @@ async def login(
         errors=(400, 422)
     )
 )
+@router.post(
+    "/verify-email",
+    response_model=SuccessResponse,
+    summary="Verify Email",
+    responses=doc_responses(
+        success_example=None,
+        success_message="Email verified successfully. You can now login.",
+        errors=(400, 422)
+    )
+)
 async def verify_email(
     request: EmailVerificationRequest,
+    http_request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -158,6 +171,7 @@ async def verify_email(
     - Activates user account
     - Allows user to login
     """
+    from app.services.audit_service import audit_service
     auth_service = AuthService(db)
     
     # Verify OTP
@@ -170,6 +184,16 @@ async def verify_email(
     
     if user:
         await auth_service.verify_email(str(user.id))
+        
+        # Audit Log
+        await audit_service.log_action(
+            action="verify_email",
+            actor_id=user.id,
+            target_id=str(user.id),
+            target_type="user",
+            details={"email": request.email},
+            request=http_request
+        )
     
     return SuccessResponse(
         message="Email verified successfully. You can now login.",
@@ -187,7 +211,11 @@ async def verify_email(
         errors=(400, 422, 429)
     )
 )
-async def resend_otp(request: ResendOTPRequest):
+async def resend_otp(
+    request: ResendOTPRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db)  # Injected for finding user
+):
     """
     Resend OTP code.
     
@@ -195,12 +223,30 @@ async def resend_otp(request: ResendOTPRequest):
     - Maximum 5 requests per hour (then 24-hour lockout)
     - Supports EMAIL_VERIFICATION and PASSWORD_RESET types
     """
+    from app.services.audit_service import audit_service
+    from app.repositories import UserRepository
+    
     otp_type = OTPType(request.type)
     otp_code = await OTPService.generate_otp(request.email, otp_type)
     
-    # TODO: Send email with OTP
+    # Send email (TODO)
     # await send_otp_email(request.email, otp_code, otp_type)
-    print(f"[DEV] OTP for {request.email}: {otp_code}")  # Remove in production
+    print(f"[DEV] OTP for {request.email}: {otp_code}")
+    
+    # Audit Log
+    # Try to find user to set as actor
+    user_repo = UserRepository(db)
+    user = await user_repo.get_by_email(request.email)
+    actor_id = str(user.id) if user else "anonymous"
+    
+    await audit_service.log_action(
+        action="resend_otp",
+        actor_id=actor_id,
+        target_id=request.email,
+        target_type="otp",
+        details={"type": request.type, "email": request.email},
+        request=http_request
+    )
     
     return SuccessResponse(message="OTP sent successfully", data=None)
 
@@ -301,7 +347,7 @@ async def logout(
     auth_service = AuthService(db)
     
     # Logout user (revoke refresh tokens)
-    await auth_service.logout(str(current_user.id))
+    await auth_service.logout(str(current_user.id), request=request)
     
     # Blacklist current access token
     # Extract token from request
@@ -377,3 +423,57 @@ async def get_current_user_info(
         message="User retrieved successfully",
         data=user_data.model_dump(exclude_none=True)
     )
+
+
+@router.post(
+    "/change-password",
+    response_model=SuccessResponse,
+    summary="Change Password",
+    responses=doc_responses(
+        success_example=None,
+        success_message="Password changed successfully",
+        errors=(400, 401)
+    )
+)
+async def change_password(
+    request: Request,
+    current_password: str,
+    new_password: str,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_verified_user)
+):
+    """
+    Change the current user's password.
+    
+    - Requires authentication
+    - Verifies current password before changing
+    - Super admin can use this to change their password
+    """
+    from app.core.security import verify_password, get_password_hash
+    from app.core.exceptions import ValidationError
+    from app.repositories import UserRepository
+    from app.services.audit_service import audit_service
+    
+    # Verify current password
+    if not verify_password(current_password, current_user.hashed_password):
+        raise ValidationError(message="Current password is incorrect")
+    
+    # Validate new password (basic check)
+    if len(new_password) < 8:
+        raise ValidationError(message="New password must be at least 8 characters")
+    
+    # Update password
+    user_repo = UserRepository(db)
+    await user_repo.update(current_user, {"hashed_password": get_password_hash(new_password)})
+    
+    # Audit log
+    await audit_service.log_action(
+        action="change_password",
+        actor_id=current_user.id,
+        target_id=str(current_user.id),
+        target_type="user",
+        request=request
+    )
+    
+    return SuccessResponse(message="Password changed successfully", data=None)
+

@@ -1,16 +1,34 @@
+"""
+Audit Log Viewer Endpoints.
+"""
 from typing import List, Optional
 from fastapi import APIRouter, Depends, Query, status
 from app.core.permissions import get_current_active_user
+from app.core.docs import doc_responses
 from app.models.user import User
 from app.services.audit_service import audit_service
-from app.schemas.pagination import PaginatedResponse
+from app.schemas.response import SuccessResponse
 from app.constants.enums import UserRole
 from app.schemas.response import ErrorCode
 from app.core.exceptions import PermissionDeniedError
 
-router = APIRouter()
+router = APIRouter(tags=["Audit Logs"])
 
-@router.get("/", response_model=PaginatedResponse[dict])
+@router.get(
+    "/",
+    response_model=SuccessResponse,
+    summary="List Audit Logs",
+    responses=doc_responses(
+        success_example={
+            "items": [{"action": "create_role", "actor_id": "...", "timestamp": "2024-01-01T00:00:00"}],
+            "total": 100,
+            "page": 1,
+            "per_page": 20
+        },
+        success_message="Audit logs retrieved successfully",
+        errors=(401, 403)
+    )
+)
 async def list_audit_logs(
     page: int = Query(1, ge=1),
     per_page: int = Query(20, ge=1, le=100),
@@ -37,9 +55,12 @@ async def list_audit_logs(
         actor_id=actor_id
     )
     
-    return PaginatedResponse.create(
-        items=logs,
-        total=total,
-        page=page,
-        per_page=per_page
+    return SuccessResponse(
+        message="Audit logs retrieved successfully",
+        data={
+            "items": logs,
+            "total": total,
+            "page": page,
+            "per_page": per_page
+        }
     )

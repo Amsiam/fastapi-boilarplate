@@ -66,20 +66,6 @@ class TestPermissionsEndpointUnauthorized:
         """Test listing permissions without authentication."""
         response = await client.get("/api/v1/admin/permissions")
         assert response.status_code == 401
-    
-    async def test_create_permission_unauthorized(self, client):
-        """Test creating permission without authentication."""
-        response = await client.post(
-            "/api/v1/admin/permissions",
-            json={"code": "test:action", "description": "Test"}
-        )
-        assert response.status_code == 401
-    
-    async def test_delete_permission_unauthorized(self, client):
-        """Test deleting permission without authentication."""
-        fake_id = str(uuid.uuid4())
-        response = await client.delete(f"/api/v1/admin/permissions/{fake_id}")
-        assert response.status_code == 401
 
 
 class TestRoleValidation:
@@ -104,12 +90,3 @@ class TestRoleValidation:
         response = await client.delete("/api/v1/admin/roles/not-a-uuid")
         assert response.status_code == 401
 
-
-class TestPermissionValidation:
-    """Test permission endpoint validation (auth is checked before path validation)."""
-    
-    async def test_delete_permission_invalid_uuid(self, client):
-        """Test deleting permission with invalid UUID returns 401 first."""
-        response = await client.delete("/api/v1/admin/permissions/not-a-uuid")
-        # Auth is checked before path validation
-        assert response.status_code == 401

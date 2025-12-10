@@ -8,11 +8,12 @@ from fastapi import APIRouter, Depends, Request, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.permissions import get_current_active_user
+from app.core.docs import doc_responses
 from app.services.user_management_service import UserManagementService
 from app.schemas.user import CustomerCreate, CustomerUpdate, CustomerDetailResponse
+from app.schemas.response import SuccessResponse
 from app.models.user import User
 from app.constants.enums import UserRole
-from app.schemas.pagination import PaginatedResponse
 
 router = APIRouter(tags=["Customer Management"])
 
@@ -23,7 +24,17 @@ def check_super_admin(user: User):
          raise HTTPException(status_code=403, detail="Not authorized")
     return user
 
-@router.post("/", response_model=CustomerDetailResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=SuccessResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create Customer",
+    responses=doc_responses(
+        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
+        success_message="Customer created successfully",
+        errors=(401, 403, 409, 422)
+    )
+)
 async def create_customer(
     data: CustomerCreate,
     request: Request,
@@ -33,9 +44,19 @@ async def create_customer(
     """Create a new customer."""
     check_super_admin(current_user)
     service = UserManagementService(db)
-    return await service.create_customer(data, actor_id=current_user.id, request=request)
+    customer = await service.create_customer(data, actor_id=current_user.id, request=request)
+    return SuccessResponse(message="Customer created successfully", data=customer)
 
-@router.get("/", response_model=PaginatedResponse[CustomerDetailResponse])
+@router.get(
+    "/",
+    response_model=SuccessResponse,
+    summary="List Customers",
+    responses=doc_responses(
+        success_example={"items": [{"id": "...", "email": "customer@example.com"}], "total": 1, "page": 1},
+        success_message="Customers retrieved successfully",
+        errors=(401, 403)
+    )
+)
 async def list_customers(
     request: Request,
     skip: int = Query(0, ge=0),
@@ -48,14 +69,27 @@ async def list_customers(
     service = UserManagementService(db)
     items, total = await service.list_customers(skip, limit)
     
-    return PaginatedResponse.create(
-        items=items,
-        total=total,
-        page=(skip // limit) + 1,
-        per_page=limit
+    page = (skip // limit) + 1 if limit > 0 else 1
+    return SuccessResponse(
+        message="Customers retrieved successfully",
+        data={
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": limit
+        }
     )
 
-@router.get("/{customer_id}", response_model=CustomerDetailResponse)
+@router.get(
+    "/{customer_id}",
+    response_model=SuccessResponse,
+    summary="Get Customer",
+    responses=doc_responses(
+        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
+        success_message="Customer retrieved successfully",
+        errors=(401, 403, 404)
+    )
+)
 async def get_customer(
     customer_id: UUID,
     current_user: User = Depends(get_current_active_user),
@@ -64,9 +98,19 @@ async def get_customer(
     """Get customer details."""
     check_super_admin(current_user)
     service = UserManagementService(db)
-    return await service.get_customer(customer_id)
+    customer = await service.get_customer(customer_id)
+    return SuccessResponse(message="Customer retrieved successfully", data=customer)
 
-@router.put("/{customer_id}", response_model=CustomerDetailResponse)
+@router.put(
+    "/{customer_id}",
+    response_model=SuccessResponse,
+    summary="Update Customer",
+    responses=doc_responses(
+        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
+        success_message="Customer updated successfully",
+        errors=(401, 403, 404, 422)
+    )
+)
 async def update_customer(
     customer_id: UUID,
     data: CustomerUpdate,
@@ -77,9 +121,19 @@ async def update_customer(
     """Update customer."""
     check_super_admin(current_user)
     service = UserManagementService(db)
-    return await service.update_customer(customer_id, data, actor_id=current_user.id, request=request)
+    customer = await service.update_customer(customer_id, data, actor_id=current_user.id, request=request)
+    return SuccessResponse(message="Customer updated successfully", data=customer)
 
-@router.delete("/{customer_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{customer_id}",
+    response_model=SuccessResponse,
+    summary="Delete Customer",
+    responses=doc_responses(
+        success_example=None,
+        success_message="Customer deleted successfully",
+        errors=(401, 403, 404)
+    )
+)
 async def delete_customer(
     customer_id: UUID,
     request: Request,
@@ -90,3 +144,4 @@ async def delete_customer(
     check_super_admin(current_user)
     service = UserManagementService(db)
     await service.delete_customer(customer_id, actor_id=current_user.id, request=request)
+    return SuccessResponse(message="Customer deleted successfully", data=None)
