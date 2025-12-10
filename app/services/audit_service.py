@@ -1,7 +1,7 @@
 """
 Audit Service for logging actions to MongoDB.
 """
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 from uuid import UUID
 from fastapi import Request
 
@@ -64,6 +64,40 @@ class AuditService:
             data = log_entry.dict()
             
         await collection.insert_one(data)
+
+    async def list_logs(
+        self,
+        skip: int = 0,
+        limit: int = 20,
+        action: Optional[str] = None,
+        target_type: Optional[str] = None,
+        actor_id: Optional[str] = None
+    ) -> tuple[List[Dict[str, Any]], int]:
+        """
+        List audit logs with filtering and pagination.
+        """
+        db = mongodb.get_db()
+        collection = db["audit_logs"]
+        
+        query = {}
+        if action:
+            query["action"] = action
+        if target_type:
+            query["target_type"] = target_type
+        if actor_id:
+            query["actor_id"] = actor_id
+            
+        total = await collection.count_documents(query)
+        
+        cursor = collection.find(query).sort("timestamp", -1).skip(skip).limit(limit)
+        logs = await cursor.to_list(length=limit)
+        
+        # Convert ObjectId to string
+        for log in logs:
+            if "_id" in log:
+                log["_id"] = str(log["_id"])
+                
+        return logs, total
 
 # Global instance
 audit_service = AuditService()

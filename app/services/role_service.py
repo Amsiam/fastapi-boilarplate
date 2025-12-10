@@ -1,14 +1,16 @@
 """
 Role and Permission management services.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from uuid import UUID
+from fastapi import Request
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.repositories import RoleRepository, PermissionRepository
 from app.core.exceptions import NotFoundError, ConflictError, ValidationError
 from app.constants import ErrorCode
+from app.services.audit_service import audit_service
 
 
 class RoleService:
@@ -21,22 +23,13 @@ class RoleService:
     async def create_role(
         self,
         name: str,
+        actor_id: UUID,
         description: Optional[str] = None,
-        permission_ids: Optional[List[UUID]] = None
+        permission_ids: Optional[List[UUID]] = None,
+        request: Optional[Request] = None
     ) -> dict:
         """
         Create a new role.
-        
-        Args:
-            name: Role name
-            description: Role description
-            permission_ids: List of permission IDs to assign
-            
-        Returns:
-            Created role data
-            
-        Raises:
-            ConflictError: If role already exists
         """
         # Check if role already exists
         existing = await self.role_repo.get_by_name(name)
@@ -53,18 +46,20 @@ class RoleService:
             permission_ids=permission_ids
         )
         
+        await audit_service.log_action(
+            action="create_role",
+            actor_id=actor_id,
+            target_id=str(role.id),
+            target_type="role",
+            details={"name": role.name, "permission_ids": [str(p) for p in (permission_ids or [])]},
+            request=request
+        )
+        
         return {"id": str(role.id), "name": role.name}
     
     async def list_roles(self, page: int = 1, per_page: int = 20) -> dict:
         """
         List all roles with permission counts and pagination.
-        
-        Args:
-            page: Page number (1-indexed)
-            per_page: Items per page
-        
-        Returns:
-            Paginated list of role data with permission counts
         """
         from sqlmodel import select, func
         from app.models.role import Role
@@ -105,17 +100,7 @@ class RoleService:
     async def get_role(self, role_id: UUID) -> dict:
         """
         Get role details with permissions.
-        
-        Args:
-            role_id: Role ID
-            
-        Returns:
-            Role data with permissions
-            
-        Raises:
-            NotFoundError: If role not found
         """
-        # Use eager loading to get role and permissions in fewer queries
         result = await self.role_repo.get_with_permissions(role_id)
         
         if not result:
@@ -141,22 +126,14 @@ class RoleService:
     async def update_role(
         self,
         role_id: UUID,
+        actor_id: UUID,
         name: Optional[str] = None,
         description: Optional[str] = None,
-        permission_ids: Optional[List[UUID]] = None
+        permission_ids: Optional[List[UUID]] = None,
+        request: Optional[Request] = None
     ) -> None:
         """
         Update role details and permissions.
-        
-        Args:
-            role_id: Role ID
-            name: New role name
-            description: New description
-            permission_ids: New permission IDs
-            
-        Raises:
-            NotFoundError: If role not found
-            ValidationError: If trying to modify system role
         """
         role = await self.role_repo.get(str(role_id))
         
@@ -172,6 +149,11 @@ class RoleService:
                 message="Cannot modify system roles"
             )
         
+        old_values = {
+            "name": role.name,
+            "description": role.description
+        }
+        
         # Update role
         await self.role_repo.update_role(
             role_id=role.id,
@@ -179,17 +161,25 @@ class RoleService:
             description=description,
             permission_ids=permission_ids
         )
+        
+        new_values = {}
+        if name: new_values["name"] = name
+        if description: new_values["description"] = description
+        if permission_ids: new_values["permission_ids"] = [str(p) for p in permission_ids]
+        
+        await audit_service.log_action(
+            action="update_role",
+            actor_id=actor_id,
+            target_id=str(role.id),
+            target_type="role",
+            old_values=old_values,
+            new_values=new_values,
+            request=request
+        )
     
-    async def delete_role(self, role_id: UUID) -> None:
+    async def delete_role(self, role_id: UUID, actor_id: UUID, request: Optional[Request] = None) -> None:
         """
         Delete a role.
-        
-        Args:
-            role_id: Role ID
-            
-        Raises:
-            NotFoundError: If role not found
-            ValidationError: If trying to delete system role
         """
         role = await self.role_repo.get(str(role_id))
         
@@ -205,9 +195,16 @@ class RoleService:
                 message="Cannot delete system roles"
             )
         
-        # TODO: Check if role is in use by any admins
-        
         await self.role_repo.delete(str(role_id))
+        
+        await audit_service.log_action(
+            action="delete_role",
+            actor_id=actor_id,
+            target_id=str(role.id),
+            target_type="role",
+            details={"name": role.name},
+            request=request
+        )
 
 
 class PermissionService:
@@ -217,19 +214,15 @@ class PermissionService:
         self.db = db
         self.perm_repo = PermissionRepository(db)
     
-    async def create_permission(self, code: str, description: Optional[str] = None) -> dict:
+    async def create_permission(
+        self, 
+        code: str, 
+        actor_id: UUID,
+        description: Optional[str] = None,
+        request: Optional[Request] = None
+    ) -> dict:
         """
         Create a new permission.
-        
-        Args:
-            code: Permission code
-            description: Permission description
-            
-        Returns:
-            Created permission data
-            
-        Raises:
-            ConflictError: If permission already exists
         """
         from app.models.role import Permission
 
@@ -248,14 +241,20 @@ class PermissionService:
         )
         permission = await self.perm_repo.create(permission)
         
+        await audit_service.log_action(
+            action="create_permission",
+            actor_id=actor_id,
+            target_id=str(permission.id),
+            target_type="permission",
+            details={"code": permission.code},
+            request=request
+        )
+        
         return {"id": str(permission.id), "code": permission.code}
     
     async def list_permissions(self) -> List[dict]:
         """
         List all permissions.
-        
-        Returns:
-            List of permission data
         """
         permissions = await self.perm_repo.list_all()
         
@@ -269,15 +268,9 @@ class PermissionService:
             for p in permissions
         ]
     
-    async def delete_permission(self, permission_id: UUID) -> None:
+    async def delete_permission(self, permission_id: UUID, actor_id: UUID, request: Optional[Request] = None) -> None:
         """
         Delete a permission.
-        
-        Args:
-            permission_id: Permission ID
-            
-        Raises:
-            NotFoundError: If permission not found
         """
         permission = await self.perm_repo.get(str(permission_id))
         
@@ -288,3 +281,12 @@ class PermissionService:
             )
         
         await self.perm_repo.delete(str(permission_id))
+        
+        await audit_service.log_action(
+            action="delete_permission",
+            actor_id=actor_id,
+            target_id=str(permission.id),
+            target_type="permission",
+            details={"code": permission.code},
+            request=request
+        )

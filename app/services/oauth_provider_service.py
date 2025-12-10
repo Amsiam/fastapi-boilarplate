@@ -4,6 +4,7 @@ OAuth Provider service for managing OAuth providers.
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
+from fastapi import Request
 
 from sqlmodel.ext.asyncio.session import AsyncSession
 
@@ -11,6 +12,7 @@ from app.repositories.auth_repository import OAuthProviderRepository
 from app.models.oauth import OAuthProvider
 from app.core.exceptions import NotFoundError, ConflictError
 from app.constants.error_codes import ErrorCode
+from app.services.audit_service import audit_service
 
 
 class OAuthProviderService:
@@ -29,30 +31,14 @@ class OAuthProviderService:
         authorization_url: str,
         token_url: str,
         user_info_url: str,
+        actor_id: UUID,
         scopes: List[str] = None,
         icon: Optional[str] = None,
-        is_active: bool = True
+        is_active: bool = True,
+        request: Optional[Request] = None
     ) -> dict:
         """
         Create a new OAuth provider.
-        
-        Args:
-            name: Unique provider name (e.g., 'google')
-            display_name: Display name (e.g., 'Google')
-            client_id: OAuth client ID
-            client_secret: OAuth client secret
-            authorization_url: Authorization endpoint URL
-            token_url: Token endpoint URL
-            user_info_url: User info endpoint URL
-            scopes: List of OAuth scopes
-            icon: Icon URL or identifier
-            is_active: Whether provider is active
-            
-        Returns:
-            Created provider data
-            
-        Raises:
-            ConflictError: If provider with same name exists
         """
         # Check if provider with same name exists
         existing = await self.provider_repo.get_by_name(name.lower())
@@ -78,6 +64,15 @@ class OAuthProviderService:
         
         created_provider = await self.provider_repo.create(provider)
         
+        await audit_service.log_action(
+            action="create_oauth_provider",
+            actor_id=actor_id,
+            target_id=str(created_provider.id),
+            target_type="oauth_provider",
+            details={"name": created_provider.name, "display_name": created_provider.display_name},
+            request=request
+        )
+        
         return {
             "id": str(created_provider.id),
             "name": created_provider.name,
@@ -93,14 +88,6 @@ class OAuthProviderService:
     ) -> dict:
         """
         List all OAuth providers with pagination.
-        
-        Args:
-            include_inactive: Whether to include inactive providers
-            page: Page number (1-indexed)
-            per_page: Items per page
-            
-        Returns:
-            Paginated list of provider data
         """
         skip = (page - 1) * per_page
         
@@ -136,15 +123,6 @@ class OAuthProviderService:
     async def get_provider(self, provider_id: UUID) -> dict:
         """
         Get OAuth provider details.
-        
-        Args:
-            provider_id: Provider UUID
-            
-        Returns:
-            Provider details (excluding client_secret)
-            
-        Raises:
-            NotFoundError: If provider not found
         """
         provider = await self.provider_repo.get(provider_id)
         
@@ -169,16 +147,9 @@ class OAuthProviderService:
             "updated_at": provider.updated_at.isoformat()
         }
     
-    async def update_provider(self, provider_id: UUID, **update_data) -> None:
+    async def update_provider(self, provider_id: UUID, actor_id: UUID, request: Optional[Request] = None, **update_data) -> None:
         """
         Update OAuth provider configuration.
-        
-        Args:
-            provider_id: Provider UUID
-            **update_data: Fields to update
-            
-        Raises:
-            NotFoundError: If provider not found
         """
         provider = await self.provider_repo.get(provider_id)
         
@@ -187,6 +158,8 @@ class OAuthProviderService:
                 error_code=ErrorCode.OAUTH_PROVIDER_NOT_FOUND,
                 message="OAuth provider not found"
             )
+        
+        old_values = {k: getattr(provider, k) for k in update_data.keys() if hasattr(provider, k)}
         
         # Update fields
         for field, value in update_data.items():
@@ -195,20 +168,20 @@ class OAuthProviderService:
         
         provider.updated_at = datetime.utcnow()
         await self.provider_repo.update(provider, update_data)
+        
+        await audit_service.log_action(
+            action="update_oauth_provider",
+            actor_id=actor_id,
+            target_id=str(provider.id),
+            target_type="oauth_provider",
+            old_values=old_values,
+            new_values=update_data,
+            request=request
+        )
     
-    async def update_status(self, provider_id: UUID, is_active: bool) -> dict:
+    async def update_status(self, provider_id: UUID, is_active: bool, actor_id: UUID, request: Optional[Request] = None) -> dict:
         """
         Activate or deactivate an OAuth provider.
-        
-        Args:
-            provider_id: Provider UUID
-            is_active: New status
-            
-        Returns:
-            Updated status
-            
-        Raises:
-            NotFoundError: If provider not found
         """
         provider = await self.provider_repo.get(provider_id)
         
@@ -218,20 +191,24 @@ class OAuthProviderService:
                 message="OAuth provider not found"
             )
         
+        old_status = provider.is_active
         await self.provider_repo.update(provider, {"is_active": is_active})
+        
+        await audit_service.log_action(
+            action="update_oauth_provider_status",
+            actor_id=actor_id,
+            target_id=str(provider.id),
+            target_type="oauth_provider",
+            old_values={"is_active": old_status},
+            new_values={"is_active": is_active},
+            request=request
+        )
         
         return {"is_active": is_active}
     
-    async def delete_provider(self, provider_id: UUID) -> None:
+    async def delete_provider(self, provider_id: UUID, actor_id: UUID, request: Optional[Request] = None) -> None:
         """
         Delete an OAuth provider.
-        
-        Args:
-            provider_id: Provider UUID
-            
-        Raises:
-            NotFoundError: If provider not found
-            ConflictError: If provider has linked accounts
         """
         provider = await self.provider_repo.get(provider_id)
         
@@ -249,3 +226,12 @@ class OAuthProviderService:
             )
         
         await self.provider_repo.delete(provider_id)
+        
+        await audit_service.log_action(
+            action="delete_oauth_provider",
+            actor_id=actor_id,
+            target_id=str(provider.id),
+            target_type="oauth_provider",
+            details={"name": provider.name},
+            request=request
+        )

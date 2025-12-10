@@ -19,6 +19,15 @@ from app.models.user import User
 from app.models.oauth import OAuthProvider
 from app.models.role import Role, Permission
 from app.core.security import hash_password
+from app.core.mongo import mongodb
+
+@pytest.fixture(autouse=True)
+async def setup_mongo_connection():
+    """Ensure MongoDB connection is active for tests."""
+    mongodb.connect()
+    # Clear audit logs or just ensure connection is open
+    yield
+    mongodb.close()
 
 
 class TestAuthService:
@@ -221,7 +230,8 @@ class TestRoleService:
         
         role = await service.create_role(
             name="test_role_" + str(uuid4())[:8],
-            description="Test role description"
+            description="Test role description",
+            actor_id=uuid4()
         )
         
         assert role is not None
@@ -239,7 +249,7 @@ class TestRoleService:
         service = RoleService(session)
         
         with pytest.raises(ConflictError):
-            await service.create_role(name=role_name, description="Duplicate role")
+            await service.create_role(name=role_name, description="Duplicate role", actor_id=uuid4())
     
     async def test_get_role_not_found(self, session):
         """Test getting non-existent role."""
@@ -274,7 +284,8 @@ class TestPermissionService:
         
         permission = await service.create_permission(
             code="test_permission_" + str(uuid4())[:8],
-            description="Test permission"
+            description="Test permission",
+            actor_id=uuid4()
         )
         
         assert permission is not None
@@ -309,7 +320,8 @@ class TestOAuthProviderService:
             client_secret="secret123",
             authorization_url="https://auth.example.com",
             token_url="https://token.example.com",
-            user_info_url="https://userinfo.example.com"
+            user_info_url="https://userinfo.example.com",
+            actor_id=uuid4()
         )
         
         assert result["name"] == provider_name
@@ -343,7 +355,8 @@ class TestOAuthProviderService:
                 client_secret="secret456",
                 authorization_url="https://auth2.example.com",
                 token_url="https://token2.example.com",
-                user_info_url="https://userinfo2.example.com"
+                user_info_url="https://userinfo2.example.com",
+                actor_id=uuid4()
             )
     
     async def test_get_provider_success(self, session):
@@ -406,7 +419,7 @@ class TestOAuthProviderService:
         service = OAuthProviderService(session)
         
         # Deactivate
-        result = await service.update_status(provider.id, False)
+        result = await service.update_status(provider.id, False, actor_id=uuid4())
         assert result["is_active"] is False
         
         # Verify in database
@@ -414,7 +427,7 @@ class TestOAuthProviderService:
         assert provider.is_active is False
         
         # Reactivate
-        result = await service.update_status(provider.id, True)
+        result = await service.update_status(provider.id, True, actor_id=uuid4())
         assert result["is_active"] is True
     
     async def test_update_provider_status_not_found(self, session):
@@ -422,7 +435,7 @@ class TestOAuthProviderService:
         service = OAuthProviderService(session)
         
         with pytest.raises(NotFoundError):
-            await service.update_status(uuid4(), False)
+            await service.update_status(uuid4(), False, actor_id=uuid4())
     
     async def test_delete_provider_success(self, session):
         """Test successful provider deletion."""
@@ -443,7 +456,7 @@ class TestOAuthProviderService:
         provider_id = provider.id
         
         service = OAuthProviderService(session)
-        await service.delete_provider(provider_id)
+        await service.delete_provider(provider_id, actor_id=uuid4())
         
         # Verify deletion
         with pytest.raises(NotFoundError):
@@ -454,7 +467,7 @@ class TestOAuthProviderService:
         service = OAuthProviderService(session)
         
         with pytest.raises(NotFoundError):
-            await service.delete_provider(uuid4())
+            await service.delete_provider(uuid4(), actor_id=uuid4())
 
 
 class TestOTPFunctions:

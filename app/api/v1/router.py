@@ -2,7 +2,7 @@
 API v1 router.
 """
 from fastapi import APIRouter
-from app.api.v1.endpoints import auth, roles, permissions, oauth, oauth_providers, admins, customers
+from app.api.v1.endpoints import auth, roles, permissions, oauth, oauth_providers, admins, customers, audit_logs
 
 api_router = APIRouter()
 
@@ -14,4 +14,5 @@ api_router.include_router(permissions.router, prefix="/admin/permissions")
 api_router.include_router(oauth_providers.router, prefix="/admin/oauth-providers")
 api_router.include_router(admins.router, prefix="/admin/admins")
 api_router.include_router(customers.router, prefix="/admin/customers")
+api_router.include_router(audit_logs.router, prefix="/admin/audit-logs")
 

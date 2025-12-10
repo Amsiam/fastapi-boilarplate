@@ -2,7 +2,7 @@
 OAuth Provider management endpoints for admin.
 """
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_db
@@ -33,6 +33,7 @@ router = APIRouter(tags=["OAuth Provider Management"])
 )
 async def create_oauth_provider(
     request: OAuthProviderCreateRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.OAUTH_PROVIDERS_WRITE]))
 ):
@@ -53,7 +54,9 @@ async def create_oauth_provider(
         user_info_url=request.user_info_url,
         scopes=request.scopes,
         icon=request.icon,
-        is_active=request.is_active
+        is_active=request.is_active,
+        actor_id=current_user.id,
+        request=req
     )
     
     return SuccessResponse(
@@ -140,6 +143,7 @@ async def get_oauth_provider(
 async def update_oauth_provider(
     provider_id: UUID,
     request: OAuthProviderUpdateRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.OAUTH_PROVIDERS_WRITE]))
 ):
@@ -150,7 +154,12 @@ async def update_oauth_provider(
     """
     service = OAuthProviderService(db)
     update_data = request.model_dump(exclude_unset=True)
-    await service.update_provider(provider_id, **update_data)
+    await service.update_provider(
+        provider_id, 
+        actor_id=current_user.id, 
+        request=req,
+        **update_data
+    )
     
     return SuccessResponse(
         message="OAuth provider updated successfully",
@@ -171,6 +180,7 @@ async def update_oauth_provider(
 async def update_oauth_provider_status(
     provider_id: UUID,
     request: OAuthProviderStatusRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.OAUTH_PROVIDERS_WRITE]))
 ):
@@ -182,7 +192,12 @@ async def update_oauth_provider_status(
     - Deactivated providers won't appear in public provider list
     """
     service = OAuthProviderService(db)
-    status_data = await service.update_status(provider_id, request.is_active)
+    status_data = await service.update_status(
+        provider_id, 
+        request.is_active, 
+        actor_id=current_user.id, 
+        request=req
+    )
     
     status_text = "activated" if request.is_active else "deactivated"
     
@@ -204,6 +219,7 @@ async def update_oauth_provider_status(
 )
 async def delete_oauth_provider(
     provider_id: UUID,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.OAUTH_PROVIDERS_DELETE]))
 ):
@@ -214,7 +230,11 @@ async def delete_oauth_provider(
     - Will fail if provider has linked accounts
     """
     service = OAuthProviderService(db)
-    await service.delete_provider(provider_id)
+    await service.delete_provider(
+        provider_id, 
+        actor_id=current_user.id, 
+        request=req
+    )
     
     return SuccessResponse(
         message="OAuth provider deleted successfully",

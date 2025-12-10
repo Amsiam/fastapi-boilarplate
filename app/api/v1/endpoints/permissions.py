@@ -2,7 +2,7 @@
 Permission management endpoints for RBAC.
 """
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_db
@@ -29,6 +29,7 @@ router = APIRouter(tags=["Permission Management"])
 )
 async def create_permission(
     request: PermissionCreateRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.PERMISSIONS_WRITE]))
 ):
@@ -42,7 +43,9 @@ async def create_permission(
     perm_service = PermissionService(db)
     perm_data = await perm_service.create_permission(
         code=request.code,
-        description=request.description
+        description=request.description,
+        actor_id=current_user.id,
+        request=req
     )
     
     return SuccessResponse(
@@ -92,6 +95,7 @@ async def list_permissions(
 )
 async def delete_permission(
     permission_id: UUID,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.PERMISSIONS_DELETE]))
 ):
@@ -102,7 +106,11 @@ async def delete_permission(
     - Will remove permission from all roles
     """
     perm_service = PermissionService(db)
-    await perm_service.delete_permission(permission_id)
+    await perm_service.delete_permission(
+        permission_id=permission_id,
+        actor_id=current_user.id,
+        request=req
+    )
     
     return SuccessResponse(
         message="Permission deleted successfully",

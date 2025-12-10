@@ -2,7 +2,7 @@
 Role management endpoints for RBAC.
 """
 from uuid import UUID
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, status, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_db
@@ -29,6 +29,7 @@ router = APIRouter(tags=["Role Management"])
 )
 async def create_role(
     request: RoleCreateRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.ROLES_WRITE]))
 ):
@@ -44,7 +45,9 @@ async def create_role(
     role_data = await role_service.create_role(
         name=request.name,
         description=request.description,
-        permission_ids=request.permission_ids
+        permission_ids=request.permission_ids,
+        actor_id=current_user.id,
+        request=req
     )
     
     return SuccessResponse(
@@ -128,6 +131,7 @@ async def get_role(
 async def update_role(
     role_id: UUID,
     request: RoleUpdateRequest,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.ROLES_WRITE]))
 ):
@@ -143,7 +147,9 @@ async def update_role(
         role_id=role_id,
         name=request.name,
         description=request.description,
-        permission_ids=request.permission_ids
+        permission_ids=request.permission_ids,
+        actor_id=current_user.id,
+        request=req
     )
     
     return SuccessResponse(
@@ -164,6 +170,7 @@ async def update_role(
 )
 async def delete_role(
     role_id: UUID,
+    req: Request,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.ROLES_DELETE]))
 ):
@@ -175,7 +182,11 @@ async def delete_role(
     - Cannot delete roles that are assigned to users
     """
     role_service = RoleService(db)
-    await role_service.delete_role(role_id)
+    await role_service.delete_role(
+        role_id=role_id,
+        actor_id=current_user.id,
+        request=req
+    )
     
     return SuccessResponse(
         message="Role deleted successfully",
