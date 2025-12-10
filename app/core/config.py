@@ -56,6 +56,10 @@ class Settings(BaseSettings):
     # App
     DEBUG: bool = False
 
+    # MongoDB
+    MONGO_URI: str = "mongodb://mongo:27017"
+    MONGO_DB_NAME: str = "audit_logs"
+
     # Allow extra fields from old .env (for backward compatibility)
     model_config = SettingsConfigDict(
         case_sensitive=True, 

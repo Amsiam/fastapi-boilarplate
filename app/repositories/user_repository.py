@@ -34,6 +34,41 @@ class UserRepository(BaseRepository[User]):
             select(Customer).where(Customer.user_id == user_id)
         )
         return result.scalar_one_or_none()
+    
+    async def soft_delete(self, user_id: UUID) -> bool:
+        """
+        Soft delete user by setting is_active=False and renaming email.
+        This allows the email to be re-registered.
+        """
+        from datetime import datetime
+        
+        user = await self.get(user_id)
+        if not user:
+            return False
+        
+        # Rename email to allow reuse: deleted_{timestamp}_{email}
+        # Truncate if too long (email max 255)
+        timestamp = int(datetime.utcnow().timestamp())
+        prefix = f"deleted_{timestamp}_"
+        original_email = user.email
+        
+        # Ensure we don't exceed max length
+        max_email_len = 255
+        if len(prefix) + len(original_email) > max_email_len:
+            # Keep unique part
+            available_len = max_email_len - len(prefix)
+            original_email = original_email[:available_len]
+            
+        new_email = f"{prefix}{original_email}"
+        
+        user.is_active = False
+        user.email = new_email
+        user.deleted_at = datetime.utcnow()
+        
+        self.db.add(user)
+        await self.db.commit()
+        await self.db.refresh(user)
+        return True
 
 
 class AdminRepository(BaseRepository[Admin]):

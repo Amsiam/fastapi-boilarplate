@@ -231,6 +231,8 @@ class PermissionService:
         Raises:
             ConflictError: If permission already exists
         """
+        from app.models.role import Permission
+
         # Check if permission already exists
         existing = await self.perm_repo.get_by_code(code)
         if existing:
@@ -240,10 +242,11 @@ class PermissionService:
             )
         
         # Create permission
-        permission = await self.perm_repo.create(
+        permission = Permission(
             code=code,
-            description=description
+            description=description or ""
         )
+        permission = await self.perm_repo.create(permission)
         
         return {"id": str(permission.id), "code": permission.code}
     
