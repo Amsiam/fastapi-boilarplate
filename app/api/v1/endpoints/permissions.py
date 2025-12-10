@@ -13,7 +13,7 @@ from app.schemas.response import SuccessResponse
 from app.services import PermissionService
 from app.constants import PermissionEnum
 
-router = APIRouter(prefix="/admin/permissions", tags=["Permission Management"])
+router = APIRouter(tags=["Permission Management"])
 
 
 @router.post(

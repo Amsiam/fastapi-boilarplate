@@ -21,7 +21,7 @@ from app.schemas.response import SuccessResponse
 from app.services import AuthService, OTPService
 from app.constants.enums import OTPType
 
-router = APIRouter(prefix="/auth", tags=["Authentication"])
+router = APIRouter(tags=["Authentication"])
 
 
 @router.post(

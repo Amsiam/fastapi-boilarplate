@@ -13,7 +13,7 @@ from app.schemas.response import SuccessResponse
 from app.services import RoleService
 from app.constants import PermissionEnum
 
-router = APIRouter(prefix="/admin/roles", tags=["Role Management"])
+router = APIRouter(tags=["Role Management"])
 
 
 @router.post(

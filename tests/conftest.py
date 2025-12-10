@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from app.main import app
 from app.core.config import settings
-from app.core.database import get_session
+from app.core.database import get_db
 
 # Database configuration
 DB_HOST = os.getenv("POSTGRES_SERVER", "localhost")
@@ -84,7 +84,7 @@ async def client(session: AsyncSession) -> AsyncClient:
     def override_get_session():
         yield session
     
-    app.dependency_overrides[get_session] = override_get_session
+    app.dependency_overrides[get_db] = override_get_session
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c

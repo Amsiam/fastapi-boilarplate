@@ -11,7 +11,7 @@ from app.schemas.response import SuccessResponse
 from app.schemas.auth import OAuthCallbackRequest, Token
 from app.services.oauth_service import OAuthService
 
-router = APIRouter()
+router = APIRouter(tags=["OAuth"])
 
 
 @router.get(

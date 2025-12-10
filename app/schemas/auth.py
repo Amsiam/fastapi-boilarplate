@@ -51,7 +51,7 @@ class ResendOTPRequest(BaseModel):
 
 class OAuthCallbackRequest(BaseModel):
     """OAuth callback request."""
-    provider_name: str
+    provider: str
     code: str
     redirect_uri: str
 
