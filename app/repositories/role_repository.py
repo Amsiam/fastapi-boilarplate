@@ -50,10 +50,16 @@ class RoleRepository(BaseRepository[Role]):
         
         return (role, permissions)
     
-    async def list_with_permission_counts(self) -> List[tuple[Role, int]]:
+    async def list_with_permission_counts(
+        self, skip: int = 0, limit: int = 20
+    ) -> List[tuple[Role, int]]:
         """
         Get all roles with their permission counts.
         Optimized to avoid N+1 queries using a single JOIN and GROUP BY.
+        
+        Args:
+            skip: Number of records to skip
+            limit: Maximum number of records to return
         
         Returns:
             List of tuples (role, permission_count)
@@ -65,6 +71,9 @@ class RoleRepository(BaseRepository[Role]):
             )
             .outerjoin(RolePermission, Role.id == RolePermission.role_id)
             .group_by(Role.id)
+            .order_by(Role.created_at.desc())
+            .offset(skip)
+            .limit(limit)
         )
         
         return result.all()

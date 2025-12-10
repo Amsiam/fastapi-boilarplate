@@ -21,6 +21,11 @@ class PermissionEnum(str, Enum):
     PERMISSIONS_WRITE = "permissions:write"
     PERMISSIONS_DELETE = "permissions:delete"
     
+    # OAuth Provider permissions
+    OAUTH_PROVIDERS_READ = "oauth_providers:read"
+    OAUTH_PROVIDERS_WRITE = "oauth_providers:write"
+    OAUTH_PROVIDERS_DELETE = "oauth_providers:delete"
+    
     # Admin management
     ADMINS_MANAGE = "admins:manage"
     

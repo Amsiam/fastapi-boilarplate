@@ -55,27 +55,52 @@ class RoleService:
         
         return {"id": str(role.id), "name": role.name}
     
-    async def list_roles(self) -> List[dict]:
+    async def list_roles(self, page: int = 1, per_page: int = 20) -> dict:
         """
-        List all roles with permission counts.
+        List all roles with permission counts and pagination.
+        
+        Args:
+            page: Page number (1-indexed)
+            per_page: Items per page
         
         Returns:
-            List of role data with permission counts
+            Paginated list of role data with permission counts
         """
-        # Use repository method for data access
-        roles_with_counts = await self.role_repo.list_with_permission_counts()
+        from sqlmodel import select, func
+        from app.models.role import Role
         
-        return [
-            {
-                "id": str(role.id),
-                "name": role.name,
-                "description": role.description,
-                "is_system_role": role.is_system,
-                "permission_count": count,
-                "created_at": role.created_at.isoformat()
-            }
-            for role, count in roles_with_counts
-        ]
+        # Get total count
+        count_query = select(func.count()).select_from(Role)
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar() or 0
+        
+        # Use repository method for data access with pagination
+        skip = (page - 1) * per_page
+        roles_with_counts = await self.role_repo.list_with_permission_counts(
+            skip=skip, limit=per_page
+        )
+        
+        total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+        
+        return {
+            "items": [
+                {
+                    "id": str(role.id),
+                    "name": role.name,
+                    "description": role.description,
+                    "is_system_role": role.is_system,
+                    "permission_count": count,
+                    "created_at": role.created_at.isoformat()
+                }
+                for role, count in roles_with_counts
+            ],
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": total_pages,
+            "has_next": page < total_pages,
+            "has_prev": page > 1
+        }
     
     async def get_role(self, role_id: UUID) -> dict:
         """

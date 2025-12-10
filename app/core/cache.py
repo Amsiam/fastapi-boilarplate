@@ -7,12 +7,24 @@ import redis.asyncio as redis
 
 from app.core.config import settings
 
-# Redis client
-redis_client = redis.Redis(
-    host=settings.REDIS_HOST,
-    port=settings.REDIS_PORT,
-    decode_responses=True
-)
+# Redis client - lazy initialized to avoid event loop issues
+_redis_client: Optional[redis.Redis] = None
+
+
+def get_redis_client() -> redis.Redis:
+    """Get or create Redis client (lazy initialization)."""
+    global _redis_client
+    if _redis_client is None:
+        _redis_client = redis.Redis(
+            host=settings.REDIS_HOST,
+            port=settings.REDIS_PORT,
+            decode_responses=True
+        )
+    return _redis_client
+
+
+# Backward compatibility alias
+redis_client = property(lambda self: get_redis_client())
 
 
 async def get_cache(key: str) -> Optional[Any]:
@@ -25,7 +37,8 @@ async def get_cache(key: str) -> Optional[Any]:
     Returns:
         Cached value or None
     """
-    value = await redis_client.get(key)
+    client = get_redis_client()
+    value = await client.get(key)
     if value:
         try:
             return json.loads(value)
@@ -50,11 +63,12 @@ async def set_cache(
     Returns:
         True if successful
     """
+    client = get_redis_client()
     # Serialize complex objects
     if isinstance(value, (dict, list)):
         value = json.dumps(value)
     
-    await redis_client.set(key, value, ex=expire)
+    await client.set(key, value, ex=expire)
     return True
 
 
@@ -68,7 +82,8 @@ async def delete_cache(key: str) -> bool:
     Returns:
         True if deleted
     """
-    result = await redis_client.delete(key)
+    client = get_redis_client()
+    result = await client.delete(key)
     return result > 0
 
 
@@ -82,12 +97,13 @@ async def delete_pattern(pattern: str) -> int:
     Returns:
         Number of keys deleted
     """
+    client = get_redis_client()
     keys = []
-    async for key in redis_client.scan_iter(match=pattern):
+    async for key in client.scan_iter(match=pattern):
         keys.append(key)
     
     if keys:
-        return await redis_client.delete(*keys)
+        return await client.delete(*keys)
     return 0
 
 
@@ -102,7 +118,8 @@ async def increment_cache(key: str, amount: int = 1) -> int:
     Returns:
         New value
     """
-    return await redis_client.incrby(key, amount)
+    client = get_redis_client()
+    return await client.incrby(key, amount)
 
 
 async def get_ttl(key: str) -> int:
@@ -115,7 +132,14 @@ async def get_ttl(key: str) -> int:
     Returns:
         TTL in seconds, -1 if no expiry, -2 if key doesn't exist
     """
-    return await redis_client.ttl(key)
+    client = get_redis_client()
+    return await client.ttl(key)
+
+
+def reset_redis_client():
+    """Reset the Redis client (useful for testing)."""
+    global _redis_client
+    _redis_client = None
 
 
 # Cache key generators
@@ -132,3 +156,4 @@ def otp_key(email: str, otp_type: str) -> str:
 def rate_limit_key(identifier: str, scope: str) -> str:
     """Generate cache key for rate limiting."""
     return f"rate_limit:{scope}:{identifier}"
+

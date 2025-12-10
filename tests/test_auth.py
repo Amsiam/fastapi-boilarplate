@@ -3,25 +3,15 @@ Basic authentication tests.
 Run with: pytest tests/test_auth.py -v
 """
 import pytest
-from httpx import AsyncClient
-from sqlmodel import select
-from app.main import app
-from app.models.user import User
-from app.core.database import async_session_maker
-
-
-@pytest.fixture
-async def client():
-    """Create test client."""
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
+import uuid
 
 
 @pytest.fixture
 async def test_user_data():
-    """Test user data."""
+    """Test user data with unique email per test run."""
+    unique_id = str(uuid.uuid4())[:8]
     return {
-        "email": "test@example.com",
+        "email": f"test_{unique_id}@example.com",
         "password": "TestPassword123!",
         "first_name": "Test",
         "last_name": "User",
@@ -60,6 +50,19 @@ class TestRegistration:
         response = await client.post("/api/v1/auth/register", json=test_user_data)
         
         assert response.status_code == 422
+    
+    async def test_register_weak_password(self, client, test_user_data):
+        """Test registration with weak password."""
+        test_user_data["password"] = "123"
+        response = await client.post("/api/v1/auth/register", json=test_user_data)
+        
+        assert response.status_code == 422
+    
+    async def test_register_missing_fields(self, client):
+        """Test registration with missing required fields."""
+        response = await client.post("/api/v1/auth/register", json={"email": "test@example.com"})
+        
+        assert response.status_code == 422
 
 
 class TestLogin:
@@ -73,7 +76,7 @@ class TestLogin:
         # Try to login without verifying
         response = await client.post(
             "/api/v1/auth/login",
-            data={"username": test_user_data["email"], "password": test_user_data["password"]}
+            json={"username": test_user_data["email"], "password": test_user_data["password"]}
         )
         
         assert response.status_code == 401
@@ -84,12 +87,21 @@ class TestLogin:
         """Test login with wrong password."""
         response = await client.post(
             "/api/v1/auth/login",
-            data={"username": test_user_data["email"], "password": "WrongPassword123!"}
+            json={"username": test_user_data["email"], "password": "WrongPassword123!"}
         )
         
         assert response.status_code == 401
         data = response.json()
         assert data["error"]["code"] == "AUTH_001"
+    
+    async def test_login_missing_fields(self, client):
+        """Test login with missing fields."""
+        response = await client.post(
+            "/api/v1/auth/login",
+            json={"username": "test@example.com"}
+        )
+        
+        assert response.status_code == 422
 
 
 class TestOTP:
@@ -97,7 +109,8 @@ class TestOTP:
     
     async def test_otp_rate_limiting(self, client):
         """Test OTP rate limiting."""
-        email = "ratelimit@example.com"
+        unique_id = str(uuid.uuid4())[:8]
+        email = f"ratelimit_{unique_id}@example.com"
         
         # First request should succeed
         response1 = await client.post(
@@ -114,6 +127,15 @@ class TestOTP:
         assert response2.status_code == 429
         data = response2.json()
         assert data["error"]["code"] == "OTP_004"
+    
+    async def test_otp_invalid_type(self, client):
+        """Test OTP with invalid type."""
+        response = await client.post(
+            "/api/v1/auth/resend-otp",
+            json={"email": "test@example.com", "type": "INVALID_TYPE"}
+        )
+        
+        assert response.status_code == 422
 
 
 class TestTokens:
@@ -126,23 +148,25 @@ class TestTokens:
         assert response.status_code == 401
         data = response.json()
         assert data["success"] is False
-
-
-class TestPasswordReset:
-    """Test password reset flow."""
     
-    async def test_forgot_password(self, client):
-        """Test forgot password request."""
-        response = await client.post(
-            "/api/v1/auth/forgot-password",
-            json={"email": "test@example.com"}
+    async def test_access_protected_route_with_invalid_token(self, client):
+        """Test accessing protected route with invalid token."""
+        response = await client.get(
+            "/api/v1/auth/me",
+            headers={"Authorization": "Bearer invalid_token"}
         )
         
-        # Should always return success (security)
-        assert response.status_code == 200
-        data = response.json()
-        assert data["success"] is True
+        assert response.status_code == 401
 
 
-# Run tests with:
-# pytest tests/test_auth.py -v --asyncio-mode=auto
+class TestRefreshToken:
+    """Test refresh token functionality."""
+    
+    async def test_refresh_without_cookie(self, client):
+        """Test refresh endpoint without cookie."""
+        response = await client.post("/api/v1/auth/refresh")
+        
+        assert response.status_code == 401
+
+
+

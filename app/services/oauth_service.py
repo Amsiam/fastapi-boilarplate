@@ -57,7 +57,7 @@ class OAuthService:
         provider = await self.provider_repo.get_by_name(provider_name)
         if not provider:
             raise NotFoundError(
-                error_code=ErrorCode.RESOURCE_NOT_FOUND,
+                error_code=ErrorCode.OAUTH_PROVIDER_NOT_FOUND,
                 message=f"Provider '{provider_name}' not found"
             )
         

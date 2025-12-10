@@ -74,6 +74,55 @@ class OAuthProviderRepository(BaseRepository[OAuthProvider]):
             select(OAuthProvider).where(OAuthProvider.is_active == True)
         )
         return result.scalars().all()
+    
+    async def list_paginated(
+        self, 
+        skip: int = 0, 
+        limit: int = 20, 
+        include_inactive: bool = True
+    ) -> tuple[List[OAuthProvider], int]:
+        """
+        Get paginated list of OAuth providers.
+        
+        Args:
+            skip: Number of records to skip
+            limit: Maximum number of records to return
+            include_inactive: Include inactive providers
+            
+        Returns:
+            Tuple of (providers list, total count)
+        """
+        from sqlmodel import func
+        
+        # Build query
+        query = select(OAuthProvider)
+        count_query = select(func.count()).select_from(OAuthProvider)
+        
+        if not include_inactive:
+            query = query.where(OAuthProvider.is_active == True)
+            count_query = count_query.where(OAuthProvider.is_active == True)
+        
+        # Get total count
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar() or 0
+        
+        # Get paginated results
+        query = query.order_by(OAuthProvider.created_at.desc()).offset(skip).limit(limit)
+        result = await self.db.execute(query)
+        providers = result.scalars().all()
+        
+        return providers, total
+    
+    async def has_linked_accounts(self, provider_id: UUID) -> bool:
+        """Check if provider has linked user accounts."""
+        from sqlmodel import func
+        result = await self.db.execute(
+            select(func.count())
+            .select_from(OAuthAccount)
+            .where(OAuthAccount.provider_id == provider_id)
+        )
+        count = result.scalar() or 0
+        return count > 0
 
 
 class OAuthAccountRepository(BaseRepository[OAuthAccount]):

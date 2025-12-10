@@ -8,4 +8,4 @@ async def test_health_check(client: AsyncClient):
     data = response.json()
     assert data["success"] is True
     assert data["message"] == "System is healthy"
-    assert data["data"] == {"status": "ok"}
+    assert data["data"] == {"status": "ok", "version": "1.0.0"}

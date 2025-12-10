@@ -2,7 +2,7 @@
 Role management endpoints for RBAC.
 """
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Query, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from app.core.database import get_db
@@ -58,24 +58,26 @@ async def create_role(
     response_model=SuccessResponse,
     summary="List Roles",
     responses=doc_responses(
-        success_example=[{"id": "550e8400-e29b-41d4-a716-446655440000", "name": "MANAGER", "permission_count": 6}],
+        success_example={"items": [{"id": "...", "name": "MANAGER"}], "total": 1, "page": 1},
         success_message="Roles retrieved successfully",
         errors=(401, 403)
     )
 )
 async def list_roles(
+    page: int = Query(default=1, ge=1, description="Page number"),
+    per_page: int = Query(default=20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.ROLES_READ]))
 ):
     """
-    List all roles.
+    List all roles with pagination.
     
     - Requires `roles:read` permission
     - Returns role summary without full permission details
-    - Optimized: Single query with COUNT to avoid N+1
+    - Returns paginated results with metadata
     """
     role_service = RoleService(db)
-    role_data = await role_service.list_roles()
+    role_data = await role_service.list_roles(page=page, per_page=per_page)
     
     return SuccessResponse(
         message="Roles retrieved successfully",

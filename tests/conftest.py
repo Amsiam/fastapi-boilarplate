@@ -6,10 +6,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 from sqlmodel import SQLModel
 from sqlalchemy import text
+from sqlalchemy.pool import NullPool
 
-from app.main import app
-from app.core.config import settings
+from app.main import app as main_app
 from app.core.database import get_db
+from app.core.cache import reset_redis_client
 
 # Database configuration
 DB_HOST = os.getenv("POSTGRES_SERVER", "localhost")
@@ -22,14 +23,21 @@ DEFAULT_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD
 # URL for the test database
 TEST_DATABASE_URL = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{DB_HOST}:5432/{TEST_DB_NAME}"
 
+# Create test engine with NullPool to avoid connection reuse issues
+test_engine = create_async_engine(
+    TEST_DATABASE_URL, 
+    echo=False, 
+    future=True,
+    poolclass=NullPool  # Disable connection pooling to avoid conflicts
+)
+TestSessionLocal = sessionmaker(test_engine, class_=AsyncSession, expire_on_commit=False)
+
 @pytest.fixture(scope="session", autouse=True)
 async def setup_test_db():
     """Create test database before tests and drop it after."""
-    # Connect to default database to create test_db
     default_engine = create_async_engine(DEFAULT_DATABASE_URL, isolation_level="AUTOCOMMIT")
     
     async with default_engine.connect() as conn:
-        # Check if database exists
         result = await conn.execute(text(f"SELECT 1 FROM pg_database WHERE datname = '{TEST_DB_NAME}'"))
         if not result.scalar():
             await conn.execute(text(f"CREATE DATABASE {TEST_DB_NAME}"))
@@ -39,10 +47,8 @@ async def setup_test_db():
     yield
     
     # Drop test database after tests
-    # Re-connect to default database
     default_engine = create_async_engine(DEFAULT_DATABASE_URL, isolation_level="AUTOCOMMIT")
     async with default_engine.connect() as conn:
-        # Terminate connections to test_db before dropping
         await conn.execute(text(f"""
             SELECT pg_terminate_backend(pg_stat_activity.pid)
             FROM pg_stat_activity
@@ -53,8 +59,6 @@ async def setup_test_db():
     
     await default_engine.dispose()
 
-engine = create_async_engine(TEST_DATABASE_URL, echo=False, future=True)
-
 @pytest.fixture(scope="session")
 def event_loop():
     loop = asyncio.get_event_loop_policy().new_event_loop()
@@ -63,29 +67,41 @@ def event_loop():
 
 @pytest.fixture(scope="session", autouse=True)
 async def init_db(setup_test_db):
-    async with engine.begin() as conn:
+    async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.create_all)
     yield
-    async with engine.begin() as conn:
+    async with test_engine.begin() as conn:
         await conn.run_sync(SQLModel.metadata.drop_all)
 
 @pytest.fixture
 async def session() -> AsyncSession:
-    async_session = sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
-    async with async_session() as session:
+    """Provide a database session for direct test use."""
+    async with TestSessionLocal() as session:
         yield session
-
-from httpx import AsyncClient, ASGITransport
+        # Rollback any uncommitted changes
+        await session.rollback()
 
 @pytest.fixture
 async def client(session: AsyncSession) -> AsyncClient:
-    def override_get_session():
+    """
+    Create test client that shares the test session.
+    This ensures data seeded in tests is visible to API endpoints.
+    """
+    
+    async def override_get_db():
+        """Override dependency to use the test session."""
         yield session
     
-    app.dependency_overrides[get_db] = override_get_session
-    transport = ASGITransport(app=app)
+    main_app.dependency_overrides[get_db] = override_get_db
+    transport = ASGITransport(app=main_app)
     async with AsyncClient(transport=transport, base_url="http://test") as c:
         yield c
-    app.dependency_overrides.clear()
+    main_app.dependency_overrides.clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_redis():
+    """Reset Redis client before each test to avoid event loop conflicts."""
+    reset_redis_client()
+    yield
+    reset_redis_client()

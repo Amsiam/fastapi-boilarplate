@@ -17,6 +17,7 @@ from app.core.cache import (
 from app.core.exceptions import ValidationError, RateLimitError
 from app.schemas.response import ErrorCode
 from app.constants.enums import OTPType
+from app.services.email_service import EmailService
 
 
 class OTPService:
@@ -93,8 +94,9 @@ class OTPService:
         
         # Increment generation attempts (1 hour expiry)
         await increment_cache(lockout_key, 1)
-        from app.core.cache import redis_client
-        await redis_client.expire(lockout_key, 3600)  # 1 hour
+        from app.core.cache import get_redis_client
+        client = get_redis_client()
+        await client.expire(lockout_key, 3600)  # 1 hour
         
         return otp_code
     
