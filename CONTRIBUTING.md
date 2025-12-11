@@ -63,7 +63,40 @@ The project is organized by **Modules** (Domain-Driven Design).
 - **Response Models**: All endpoints must define a `response_model` using the generic `ResponseModel[T]` wrapper.
 - **Error Handling**: Use `create_error_responses` in `app.core.docs` to document error responses in OpenAPI.
 - **Dependency Injection**: Use FastAPI's dependency injection for database sessions (`get_db`) and other shared resources.
-- **Filtering**: Use the scalable filtering system (`app.core.filtering`). Implement `get_list` in repositories inheriting from `BaseRepository` and expose standard parameters (`q`, `sort`, `order`) in endpoints.
+- **Filtering**: Use the scalable filtering system (`app.core.filtering`).
+
+  **Implementation Steps**:
+  1. **Repository**: Inherit from `BaseRepository`. You get `get_list()` for free.
+
+     ```python
+     # For standard usage, no extra code needed in repo.
+     # For custom queries, use utilities:
+     from app.core.filtering import apply_filters, apply_sorting, apply_search, SortOrder
+     ```
+
+  2. **Endpoint**: Accept standard parameters and pass them to your service/repository.
+
+     ```python
+     @router.get("/")
+     async def list_items(
+         q: Optional[str] = None,
+         sort: str = "created_at",
+         order: str = "desc",
+         # Add model-specific filters
+         status: Optional[str] = None
+     ):
+         filters = {"status": status}
+         # Pass to service/repo
+         return await repo.get_list(filters=filters, search_query=q, ...)
+     ```
+
+  3. **Advanced Usage**: For advanced filters (e.g. ranges), simply add them to the `filters` dict in the endpoint logic:
+
+     ```python
+     # e.g. /items?min_price=10
+     if min_price:
+         filters["price__gte"] = min_price
+     ```
 
 ### 4. Database Migrations
 

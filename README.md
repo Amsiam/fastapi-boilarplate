@@ -226,6 +226,20 @@ The API supports standardized listing parameters across endpoints (e.g., Custome
 Example:
 `GET /api/v1/admin/customers?q=alice&sort=created_at&order=desc&is_active=true`
 
+#### Filter Syntax
+
+Advanced filtering is supported using double underscores `__`:
+
+| Operator | Description | Example |
+|----------|-------------|---------|
+| `eq` | Equals (default) | `role=ADMIN` |
+| `ne` | Not Equals | `role__ne=CUSTOMER` |
+| `gt` / `gte` | Greater Than (or Equal) | `age__gt=18` |
+| `lt` / `lte` | Less Than (or Equal) | `price__lte=100` |
+| `like` | Case-sensitive contains | `name__like=Admin` |
+| `ilike` | Case-insensitive contains | `email__ilike=john` |
+| `in` | In list (comma-separated) | `status__in=active,pending` |
+
 ## Project Structure
 
 ```text
