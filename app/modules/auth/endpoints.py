@@ -21,7 +21,12 @@ from app.modules.auth.schemas import (
 from app.core.schemas.response import SuccessResponse
 from app.modules.auth.service import AuthService
 from app.modules.auth.otp_service import OTPService
-from app.constants.enums import OTPType
+from app.constants.enums import OTPType, UserRole
+from app.core.config import settings
+from app.constants.rate_limits import RateLimit
+from app.modules.audit.service import audit_service
+from app.core.exceptions import AuthenticationError, ValidationError
+from app.core.schemas.response import ErrorCode
 
 router = APIRouter(tags=["Authentication"])
 
@@ -37,7 +42,7 @@ router = APIRouter(tags=["Authentication"])
         errors=(409, 422)
     )
 )
-@rate_limit("auth:register")
+@rate_limit(RateLimit.AUTH_REGISTER)
 async def register(
     request: UserRegisterRequest,
     http_request: Request,
@@ -67,7 +72,8 @@ async def register(
     
     # TODO: Send email with OTP
     # await send_verification_email(user.email, otp_code)
-    print(f"[DEV] OTP for {user.email}: {otp_code}")  # Remove in production
+    if settings.DEBUG:
+        print(f"[DEV] OTP for {user.email}: {otp_code}")
     
     return SuccessResponse(
         message="User registered successfully. Please verify your email.",
@@ -84,7 +90,7 @@ async def register(
         errors=(401, 403, 422)
     )
 )
-@rate_limit("auth:login")
+@rate_limit(RateLimit.AUTH_LOGIN)
 async def login(
     request: LoginRequest,
     response: Response,
@@ -105,10 +111,7 @@ async def login(
     user = await auth_service.authenticate_user(request.username, request.password, request=http_request)
     
     # Check email verification for customers
-    from app.constants.enums import UserRole
-    from app.core.exceptions import AuthenticationError
-    from app.core.schemas.response import ErrorCode
-    
+    # Check email verification for customers
     if user.role == UserRole.CUSTOMER and not user.is_verified:
         raise AuthenticationError(
             error_code=ErrorCode.EMAIL_NOT_VERIFIED,
@@ -147,7 +150,7 @@ async def login(
         errors=(400, 422)
     )
 )
-@rate_limit("auth:verify_email")
+@rate_limit(RateLimit.AUTH_VERIFY_EMAIL)
 async def verify_email(
     request: EmailVerificationRequest,
     http_request: Request,
@@ -160,7 +163,6 @@ async def verify_email(
     - Activates user account
     - Allows user to login
     """
-    from app.modules.audit.service import audit_service
     auth_service = AuthService(db)
     
     # Verify OTP
@@ -199,7 +201,7 @@ async def verify_email(
         errors=(400, 422, 429)
     )
 )
-@rate_limit("auth:resend_otp")
+@rate_limit(RateLimit.AUTH_RESEND_OTP)
 async def resend_otp(
     request: ResendOTPRequest,
     http_request: Request,
@@ -220,7 +222,8 @@ async def resend_otp(
     
     # Send email (TODO)
     # await send_otp_email(request.email, otp_code, otp_type)
-    print(f"[DEV] OTP for {request.email}: {otp_code}")
+    if settings.DEBUG:
+        print(f"[DEV] OTP for {request.email}: {otp_code}")
     
     # Audit Log
     # Try to find user to set as actor
@@ -266,8 +269,6 @@ async def refresh_token(
     **Note:** Refresh token is automatically read from HttpOnly cookie.
     """
     from fastapi import Request
-    from app.core.exceptions import AuthenticationError
-    from app.core.schemas.response import ErrorCode
     
     # Get refresh token from cookie
     refresh_token = request.cookies.get("refresh_token")
@@ -326,7 +327,6 @@ async def logout(
     - Clears permission cache
     """
     from app.core.cache import set_cache
-    from app.core.config import settings
     
     auth_service = AuthService(db)
     
@@ -410,7 +410,7 @@ async def get_current_user_info(
         errors=(400, 401)
     )
 )
-@rate_limit("auth:change_password", by="user")
+@rate_limit(RateLimit.AUTH_CHANGE_PASSWORD, by="user")
 async def change_password(
     request: Request,
     current_password: str,
@@ -425,10 +425,7 @@ async def change_password(
     - Verifies current password before changing
     - Super admin can use this to change their password
     """
-    from app.core.security import verify_password, get_password_hash
-    from app.core.exceptions import ValidationError
     from app.modules.users.repository import UserRepository
-    from app.modules.audit.service import audit_service
     
     # Verify current password
     if not verify_password(current_password, current_user.hashed_password):
