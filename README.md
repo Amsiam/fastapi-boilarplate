@@ -59,12 +59,13 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 | Command | Description |
 |---------|-------------|
 | `./manage.py run` | Run the development server |
-| `./manage.py test` | Run tests locally |
+| `./manage.py test` | Run tests locally (auto-discovers `tests/` and `app/modules/*/tests/`) |
 | `./manage.py migrate -m "msg"` | Create a new migration |
 | `./manage.py upgrade` | Apply database migrations |
 | `./manage.py downgrade` | Revert last migration |
 | `./manage.py docker up` | Start Docker containers |
 | `./manage.py docker down` | Stop Docker containers |
+| `./manage.py make:module <name>` | Scaffold a new module |
 
 **Running commands in Docker:**
 
@@ -77,6 +78,21 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 
 # Run seeders in Docker
 ./manage.py db:seed --docker
+```
+
+### Module Scaffolding
+Use the `make:module` command to quickly generate standard module structures:
+
+```bash
+# Basic module scaffolding
+./manage.py make:module my_module
+
+# Generate with a test file in 'tests/modules/'
+./manage.py make:module my_module --with-test
+
+# Generate with a CO-LOCATED test file (Recommended)
+# Creates app/modules/my_module/tests/test_my_module.py
+./manage.py make:module my_module --colocated-test
 ```
 
 ### Seeder Commands
@@ -195,6 +211,8 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 │   ├── core/                 # Core functionality (config, db, email, base classes)
 │   ├── modules/              # Domain-specific modules
 │   │   ├── auth/             # Authentication module
+│   │   │   ├── tests/        # Co-located tests
+│   │   │   └── ...
 │   │   ├── users/            # User management module
 │   │   ├── roles/            # RBAC module
 │   │   ├── oauth/            # OAuth module
@@ -202,7 +220,7 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 │   └── main.py               # Application entry point
 ├── alembic/                  # Database migrations
 ├── seeders/                  # Database seeders
-├── tests/                    # Test suite (mirrors modular structure)
+├── tests/                    # Core & Infrastructure tests
 ├── docs/                     # Documentation
 ├── manage.py                 # CLI management script
 └── docker-compose.dev.yml    # Docker development setup
@@ -214,14 +232,15 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 # Run all tests in Docker
 ./manage.py test
 
-# Run tests locally
-REDIS_HOST=localhost MONGO_URI="mongodb://localhost:27017" pytest tests/ -v
+# Run tests locally (requires environment setup)
+source venv/bin/activate
+./manage.py test
 
-# Run with coverage
-pytest tests/ --cov=app --cov-report=html
+# Run specific module tests
+pytest app/modules/auth/tests/
 
 # Run specific test file
-pytest tests/test_auth.py -v
+pytest app/modules/auth/tests/test_auth_api.py -v
 ```
 
 ## Environment Variables

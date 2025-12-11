@@ -16,20 +16,20 @@ The project follows a modular architecture designed for scalability and maintain
 │   ├── core                 # Core functionality (config, db, security, email)
 │   ├── modules              # Domain-Driven Modules
 │   │   ├── auth             # Auth (Login, Register, Tokens)
+│   │   │   └── tests        # Co-located tests
 │   │   ├── users            # User Management
 │   │   ├── roles            # RBAC (Roles & Permissions)
 │   │   ├── oauth            # OAuth Providers
 │   │   └── audit            # Audit Logging
 │   └── main.py              # Application entry point
 ├── alembic                  # Database migrations
-├── tests                    # Pytest test suite
+├── tests                    # Core & Infrastructure tests
 ├── docker-compose.yml       # Production Docker composition
 ├── docker-compose.dev.yml   # Development Docker composition
 └── requirements.txt         # Project dependencies
 ```
 
 ## Best Practices
-
 
 ### 1. Code Style
 - **Type Hinting**: All functions and methods must have type hints.
@@ -39,22 +39,29 @@ The project follows a modular architecture designed for scalability and maintain
 
 ### 2. Modular Architecture (DDD)
 The project is organized by **Modules** (Domain-Driven Design).
-- **New Features**: Create a new directory in `app/modules/` (e.g., `app/modules/products`).
+
+**Recommendation**: Use the CLI to scaffold new modules:
+
+```bash
+# Creates module structure with co-located tests
+./manage.py make:module my_module --colocated-test
+```
+
 - **Structure**: Each module should contain:
   - `models.py`: Database models.
   - `schemas.py`: Pydantic schemas.
   - `service.py`: Business logic.
   - `repository.py`: Database access.
   - `endpoints.py`: API routes.
+  - `tests/`: Module-specific tests.
 - **Router Registration**: Register your module's router in `app/api/v1/router.py`.
 
-
-### 2. API Development
+### 3. API Development
 - **Response Models**: All endpoints must define a `response_model` using the generic `ResponseModel[T]` wrapper.
 - **Error Handling**: Use `create_error_responses` in `app.core.docs` to document error responses in OpenAPI.
 - **Dependency Injection**: Use FastAPI's dependency injection for database sessions (`get_db`) and other shared resources.
 
-### 3. Database Migrations
+### 4. Database Migrations
 We use **Alembic** for database migrations.
 
 - **Create a new migration**:
@@ -66,16 +73,18 @@ We use **Alembic** for database migrations.
   alembic upgrade head
   ```
 
-### 4. Testing
+### 5. Testing
 We use **Pytest** for testing. All new features must include tests.
 
 - **Run tests**:
   ```bash
-  # Using Manager Script (Local or Docker)
+  # Using Manager Script (runs all tests)
   ./manage.py test
 
-  # Or using Pytest directly
+  # Using Pytest directly
+  source venv/bin/activate
   pytest tests/
+  pytest app/modules/
   ```
 - **Test Database**: The test suite automatically creates and destroys a separate `test_db`.
 
