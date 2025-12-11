@@ -48,9 +48,9 @@ docker-compose -f docker-compose.dev.yml up --build
 
 ### 5. Access the API
 
-- **API**: http://localhost:8000
-- **Swagger UI**: http://localhost:8000/docs
-- **ReDoc**: http://localhost:8000/redoc
+- **API**: <http://localhost:8000>
+- **Swagger UI**: <http://localhost:8000/docs>
+- **ReDoc**: <http://localhost:8000/redoc>
 
 ## Management Commands
 
@@ -81,6 +81,7 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 ```
 
 ### Module Scaffolding
+
 Use the `make:module` command to quickly generate standard module structures:
 
 ```bash
@@ -108,6 +109,7 @@ Use the `make:module` command to quickly generate standard module structures:
 ## API Endpoints
 
 ### Authentication
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/auth/register` | Register new customer |
@@ -122,6 +124,7 @@ Use the `make:module` command to quickly generate standard module structures:
 | POST | `/api/v1/auth/reset-password` | Reset password with OTP |
 
 ### OAuth
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/oauth/providers` | List OAuth providers |
@@ -129,6 +132,7 @@ Use the `make:module` command to quickly generate standard module structures:
 | POST | `/api/v1/oauth/callback` | OAuth callback |
 
 ### Admin - User Management
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/admin/admins` | List admins |
@@ -143,6 +147,7 @@ Use the `make:module` command to quickly generate standard module structures:
 | DELETE | `/api/v1/admin/customers/{id}` | Delete customer |
 
 ### Admin - RBAC
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/admin/roles` | List roles |
@@ -153,6 +158,7 @@ Use the `make:module` command to quickly generate standard module structures:
 | GET | `/api/v1/admin/permissions` | List permissions |
 
 ### Admin - OAuth Provider Management
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/admin/oauth-providers` | List OAuth providers |
@@ -163,6 +169,7 @@ Use the `make:module` command to quickly generate standard module structures:
 | PATCH | `/api/v1/admin/oauth-providers/{id}/status` | Activate/deactivate |
 
 ### Audit Logs
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/v1/admin/audit-logs` | List audit logs (MongoDB) |
@@ -170,6 +177,7 @@ Use the `make:module` command to quickly generate standard module structures:
 ## Features
 
 ### Authentication & Security
+
 - ✅ JWT Authentication (access tokens: 15min, refresh tokens: 7 days)
 - ✅ Token rotation with reuse detection
 - ✅ Token blacklist for immediate logout
@@ -180,22 +188,26 @@ Use the `make:module` command to quickly generate standard module structures:
 - ✅ Bcrypt password hashing
 
 ### Authorization
+
 - ✅ Role-Based Access Control (RBAC)
 - ✅ Dynamic permissions with caching
 - ✅ Permission overrides per user
 - ✅ Super admin protection (cannot be edited/deleted)
 
 ### OAuth2
+
 - ✅ Multiple OAuth providers support
 - ✅ Provider management API
 - ✅ Account linking
 
 ### Audit & Monitoring
+
 - ✅ Comprehensive audit logging (MongoDB)
 - ✅ User action tracking (login, logout, register, etc.)
 - ✅ IP and User-Agent logging
 
 ### Developer Experience
+
 - ✅ Swagger/OpenAPI documentation
 - ✅ Consistent API response format
   - See [Error Codes](docs/error_codes.md) for full list
@@ -204,7 +216,7 @@ Use the `make:module` command to quickly generate standard module structures:
 
 ## Project Structure
 
-```
+```text
 ├── app/
 │   ├── api/v1/router.py      # Main API router
 │   ├── constants/            # Application constants and literals
@@ -248,6 +260,7 @@ pytest app/modules/auth/tests/test_auth_api.py -v
 See `.env.example` for all available configuration options.
 
 Key variables:
+
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `SECRET_KEY` | JWT signing key | Required |
