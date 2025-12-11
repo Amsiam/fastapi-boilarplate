@@ -27,6 +27,7 @@ from app.constants.rate_limits import RateLimit
 from app.modules.audit.service import audit_service
 from app.core.exceptions import AuthenticationError, ValidationError
 from app.core.schemas.response import ErrorCode
+from app.core.security import verify_password, get_password_hash
 
 router = APIRouter(tags=["Authentication"])
 
@@ -429,11 +430,19 @@ async def change_password(
     
     # Verify current password
     if not verify_password(current_password, current_user.hashed_password):
-        raise ValidationError(message="Current password is incorrect")
+        raise ValidationError(
+            error_code=ErrorCode.INVALID_CREDENTIALS,
+            message="Current password is incorrect",
+            field="current_password"
+        )
     
     # Validate new password (basic check)
     if len(new_password) < 8:
-        raise ValidationError(message="New password must be at least 8 characters")
+        raise ValidationError(
+            error_code=ErrorCode.PASSWORD_TOO_SHORT,
+            message="New password must be at least 8 characters",
+            field="new_password"
+        )
     
     # Update password
     user_repo = UserRepository(db)

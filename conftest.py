@@ -75,6 +75,7 @@ def event_loop():
 @pytest.fixture(scope="session", autouse=True)
 async def init_db(setup_test_db):
     async with test_engine.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.drop_all)
         await conn.run_sync(SQLModel.metadata.create_all)
     yield
     async with test_engine.begin() as conn:
