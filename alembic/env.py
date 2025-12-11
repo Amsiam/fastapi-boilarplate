@@ -9,7 +9,29 @@ from alembic import context
 
 from app.core.config import settings
 from sqlmodel import SQLModel
-from app.models import * # Import all models here for autogenerate
+import importlib
+import os
+from pathlib import Path
+
+# Dynamic model discovery: Import all *models.py files from app/modules
+# This ensures Alembic detects new modules automatically.
+base_path = Path(__file__).resolve().parent.parent / "app" / "modules"
+
+if base_path.exists():
+    for root, dirs, files in os.walk(base_path):
+        for file in files:
+            if file.endswith("models.py"):
+                # Convert file path to module path
+                # e.g. /path/to/app/modules/auth/token_models.py -> app.modules.auth.token_models
+                full_path = Path(root) / file
+                relative_path = full_path.relative_to(base_path.parent.parent)
+                module_name = str(relative_path).replace(os.sep, ".").replace(".py", "")
+                
+                try:
+                    importlib.import_module(module_name)
+                    # print(f"Imported model: {module_name}")  # Debug (optional)
+                except ImportError as e:
+                    print(f"Failed to import model {module_name}: {e}")
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
