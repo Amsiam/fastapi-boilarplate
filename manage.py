@@ -138,6 +138,7 @@ def docker_cmd(
 def make_module(
     name: str = typer.Argument(..., help="Name of the module (e.g., 'products')"),
     with_test: bool = typer.Option(False, "--with-test", "-t", help="Generate a test file for the module"),
+    colocated_test: bool = typer.Option(False, "--colocated-test", "-c", help="Generate test file within the module directory"),
 ):
     """Create a new module with standard structure."""
     module_name = name.lower()
@@ -294,7 +295,16 @@ async def list_{module_name}s(
 ):
     service = {class_prefix}Service(session)
     result = await service.get_all()
-    return SuccessResponse(message="{display_name}s retrieved successfully", data=result)
+    # TODO: Implement actual pagination in service
+    return SuccessResponse(
+        message="{display_name}s retrieved successfully", 
+        data={{
+            "items": result,
+            "total": len(result),
+            "page": 1,
+            "per_page": 100
+        }}
+    )
 
 @router.get(
     "/{{id}}",
@@ -355,9 +365,17 @@ async def delete_{module_name}(
     console.print(f"[green]Successfully created module '{module_name}' structure in {base_dir}[/green]")
 
     # 7. Create tests if requested
-    if with_test:
-        test_dir = os.path.join("tests", "modules")
-        os.makedirs(test_dir, exist_ok=True)
+    if with_test or colocated_test:
+        if colocated_test:
+            test_dir = os.path.join(base_dir, "tests")
+            # Create __init__.py for test discovery in module
+            os.makedirs(test_dir, exist_ok=True)
+            with open(os.path.join(test_dir, "__init__.py"), "w") as f:
+                f.write("")
+        else:
+            test_dir = os.path.join("tests", "modules")
+            os.makedirs(test_dir, exist_ok=True)
+            
         test_file_path = os.path.join(test_dir, f"test_{module_name}.py")
         
         test_content = f'''import pytest
