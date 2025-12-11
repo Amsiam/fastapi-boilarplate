@@ -15,6 +15,7 @@ from app.modules.auth.schemas import (
     ResendOTPRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    ChangePasswordRequest,
     TokenResponse,
     UserResponse
 )
@@ -414,8 +415,7 @@ async def get_current_user_info(
 @rate_limit(RateLimit.AUTH_CHANGE_PASSWORD, by="user")
 async def change_password(
     request: Request,
-    current_password: str,
-    new_password: str,
+    body: ChangePasswordRequest,
     db: AsyncSession = Depends(get_db),
     current_user = Depends(get_current_verified_user)
 ):
@@ -429,24 +429,16 @@ async def change_password(
     from app.modules.users.repository import UserRepository
     
     # Verify current password
-    if not verify_password(current_password, current_user.hashed_password):
+    if not verify_password(body.current_password, current_user.hashed_password):
         raise ValidationError(
             error_code=ErrorCode.INVALID_CREDENTIALS,
             message="Current password is incorrect",
             field="current_password"
         )
     
-    # Validate new password (basic check)
-    if len(new_password) < 8:
-        raise ValidationError(
-            error_code=ErrorCode.PASSWORD_TOO_SHORT,
-            message="New password must be at least 8 characters",
-            field="new_password"
-        )
-    
     # Update password
     user_repo = UserRepository(db)
-    await user_repo.update(current_user, {"hashed_password": get_password_hash(new_password)})
+    await user_repo.update(current_user, {"hashed_password": get_password_hash(body.new_password)})
     
     # Audit log
     await audit_service.log_action(

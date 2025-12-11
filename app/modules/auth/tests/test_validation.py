@@ -45,7 +45,7 @@ class TestChangePasswordValidation:
         # 2. Test Invalid Current Password
         res_current = await client.post(
             "/api/v1/auth/change-password",
-            params={
+            json={
                 "current_password": "WrongPassword",
                 "new_password": "NewPassword123!"
             },
@@ -58,7 +58,7 @@ class TestChangePasswordValidation:
         # 3. Test Invalid New Password
         res_new = await client.post(
             "/api/v1/auth/change-password",
-            params={
+            json={
                 "current_password": password,
                 "new_password": "short"
             },
@@ -66,4 +66,5 @@ class TestChangePasswordValidation:
         )
         assert res_new.status_code == 422
         data_new = res_new.json()
-        assert data_new["error"]["field"] == "new_password"
+        # Pydantic validation error returns list of errors
+        assert data_new["errors"][0]["field"] == "new_password"
