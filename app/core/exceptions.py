@@ -4,7 +4,7 @@ Custom exception classes for the application with standardized error responses.
 from typing import Any, Dict, Optional
 from fastapi import HTTPException, status
 
-from app.schemas.response import ErrorCode
+from app.core.schemas.response import ErrorCode
 
 
 class AppException(HTTPException):

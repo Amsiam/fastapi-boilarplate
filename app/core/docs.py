@@ -4,7 +4,7 @@ OpenAPI documentation utilities and decorators.
 from typing import Dict, Any, Optional, Callable
 from functools import wraps
 from fastapi import status
-from app.schemas.response import ErrorResponse, SuccessResponse, ErrorCode
+from app.core.schemas.response import ErrorResponse, SuccessResponse, ErrorCode
 
 
 def create_error_responses(*status_codes: int) -> Dict[int | str, Dict[str, Any]]:

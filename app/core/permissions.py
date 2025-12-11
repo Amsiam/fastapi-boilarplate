@@ -11,7 +11,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 from app.core.security import decode_token
-from app.models.user import User
+from app.modules.users.models import User
 from app.constants import PermissionEnum, DEFAULT_ROLE_PERMISSIONS
 
 
@@ -50,10 +50,10 @@ async def get_current_user(
     Raises:
         AuthenticationError: If token is invalid or user not found
     """
-    from app.repositories import UserRepository
+    from app.modules.users.repository import UserRepository
     from app.core.cache import get_cache
     from app.core.exceptions import AuthenticationError, NotFoundError
-    from app.schemas.response import ErrorCode
+    from app.core.schemas.response import ErrorCode
     
     # Try to extract token from multiple sources
     access_token = None
@@ -127,7 +127,7 @@ async def get_current_active_user(
         AuthenticationError: If user is inactive
     """
     from app.core.exceptions import AuthenticationError
-    from app.schemas.response import ErrorCode
+    from app.core.schemas.response import ErrorCode
     
     if not current_user.is_active:
         raise AuthenticationError(
@@ -153,7 +153,7 @@ async def get_current_verified_user(
         AuthenticationError: If user email is not verified
     """
     from app.core.exceptions import AuthenticationError
-    from app.schemas.response import ErrorCode
+    from app.core.schemas.response import ErrorCode
     
     if not current_user.is_verified:
         raise AuthenticationError(
@@ -176,7 +176,8 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
         List of permission codes
     """
     from app.constants.enums import UserRole
-    from app.repositories import AdminRepository, RoleRepository
+    from app.modules.users.repository import AdminRepository
+    from app.modules.roles.repository import RoleRepository
     from app.core.cache import get_cache, set_cache, user_permissions_key
     
     # Customers have fixed permissions (no caching needed)
@@ -206,7 +207,7 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     # SUPER_ADMIN has all permissions
     if role.name == "SUPER_ADMIN":
         # Fetch all permissions from database to be explicit (ACID/Consistency)
-        from app.repositories import PermissionRepository
+        from app.modules.roles.repository import PermissionRepository
         perm_repo = PermissionRepository(db)
         all_perms = await perm_repo.list_all()
         permissions = [p.code for p in all_perms]
@@ -252,7 +253,7 @@ def require_permissions(required_permissions: List[str]):
     ) -> User:
         """Check if user has required permissions."""
         from app.core.exceptions import PermissionDeniedError
-        from app.schemas.response import ErrorCode
+        from app.core.schemas.response import ErrorCode
         
         user_permissions = await get_user_permissions(current_user, db)
         
@@ -281,7 +282,7 @@ def require_admin():
         """Check if user is an admin."""
         from app.constants.enums import UserRole
         from app.core.exceptions import PermissionDeniedError
-        from app.schemas.response import ErrorCode
+        from app.core.schemas.response import ErrorCode
         
         if current_user.role != UserRole.ADMIN:
             raise PermissionDeniedError(

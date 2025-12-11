@@ -6,17 +6,20 @@ Welcome to the FastAPI Project! We appreciate your interest in contributing. Thi
 
 The project follows a modular architecture designed for scalability and maintainability.
 
-```
+```text
 .
 ├── app
 │   ├── api
-│   │   └── v1               # API versioning
-│   │       └── endpoints    # Route handlers (controllers)
+│   │   └── v1
+│   │       └── router.py    # Main API router (aggregates module routers)
 │   ├── constants            # Application constants and literals
 │   ├── core                 # Core functionality (config, db, security, email)
-│   ├── models               # SQLModel/SQLAlchemy database models
-│   ├── schemas              # Pydantic schemas for request/response validation
-│   ├── services             # Business logic layer
+│   ├── modules              # Domain-Driven Modules
+│   │   ├── auth             # Auth (Login, Register, Tokens)
+│   │   ├── users            # User Management
+│   │   ├── roles            # RBAC (Roles & Permissions)
+│   │   ├── oauth            # OAuth Providers
+│   │   └── audit            # Audit Logging
 │   └── main.py              # Application entry point
 ├── alembic                  # Database migrations
 ├── tests                    # Pytest test suite
@@ -27,11 +30,24 @@ The project follows a modular architecture designed for scalability and maintain
 
 ## Best Practices
 
+
 ### 1. Code Style
 - **Type Hinting**: All functions and methods must have type hints.
-- **Async/Await**: Use `async` and `await` for all I/O bound operations (DB, external APIs).
-- **Pydantic**: Use Pydantic models for all data validation and serialization.
+- **Async/Await**: Use `async` and `await` for all I/O bound operations.
+- **Pydantic**: Use Pydantic models for all data validation.
 - **SQLModel**: Use SQLModel for database interactions.
+
+### 2. Modular Architecture (DDD)
+The project is organized by **Modules** (Domain-Driven Design).
+- **New Features**: Create a new directory in `app/modules/` (e.g., `app/modules/products`).
+- **Structure**: Each module should contain:
+  - `models.py`: Database models.
+  - `schemas.py`: Pydantic schemas.
+  - `service.py`: Business logic.
+  - `repository.py`: Database access.
+  - `endpoints.py`: API routes.
+- **Router Registration**: Register your module's router in `app/api/v1/router.py`.
+
 
 ### 2. API Development
 - **Response Models**: All endpoints must define a `response_model` using the generic `ResponseModel[T]` wrapper.
@@ -55,8 +71,11 @@ We use **Pytest** for testing. All new features must include tests.
 
 - **Run tests**:
   ```bash
-  # Using Docker (Recommended)
-  docker-compose -f docker-compose.dev.yml run --rm -e PYTHONPATH=. -e POSTGRES_SERVER=db web pytest
+  # Using Manager Script (Local or Docker)
+  ./manage.py test
+
+  # Or using Pytest directly
+  pytest tests/
   ```
 - **Test Database**: The test suite automatically creates and destroys a separate `test_db`.
 

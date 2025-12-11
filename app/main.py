@@ -28,7 +28,7 @@ app.add_middleware(RateLimitMiddleware, limit=60, window=60)
 
 add_exception_handlers(app)
 
-from app.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse
 from app.core.docs import doc_responses
 
 @app.get(

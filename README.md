@@ -190,22 +190,19 @@ All commands run locally by default. Add `--docker` or `-d` to run in Docker con
 
 ```
 ├── app/
-│   ├── api/v1/endpoints/     # API endpoints
-│   ├── constants/            # Enums, error codes, permissions
-│   ├── core/                 # Config, security, cache, database
-│   ├── models/               # SQLModel database models
-│   ├── repositories/         # Data access layer
-│   ├── schemas/              # Pydantic request/response schemas
-│   └── services/             # Business logic layer
+│   ├── api/v1/router.py      # Main API router
+│   ├── constants/            # Application constants and literals
+│   ├── core/                 # Core functionality (config, db, email, base classes)
+│   ├── modules/              # Domain-specific modules
+│   │   ├── auth/             # Authentication module
+│   │   ├── users/            # User management module
+│   │   ├── roles/            # RBAC module
+│   │   ├── oauth/            # OAuth module
+│   │   └── audit/            # Audit logging module
+│   └── main.py               # Application entry point
 ├── alembic/                  # Database migrations
 ├── seeders/                  # Database seeders
-│   ├── base.py              # BaseSeeder class
-│   ├── runner.py            # Seeder discovery & execution
-│   ├── permissions_seeder.py
-│   ├── roles_seeder.py
-│   └── super_admin_seeder.py
-├── tests/                    # Test files
-├── scripts/                  # Utility scripts
+├── tests/                    # Test suite (mirrors modular structure)
 ├── docs/                     # Documentation
 ├── manage.py                 # CLI management script
 └── docker-compose.dev.yml    # Docker development setup
