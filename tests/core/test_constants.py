@@ -1,16 +1,16 @@
 """
 Constants and Enums tests.
 """
-from app.constants.enums import UserRole, OTPType
+from app.constants.enums import UserType, OTPType
 from app.constants.error_codes import ErrorCode
 
 class TestEnums:
     """Test enum values."""
     
     def test_user_roles(self):
-        """Test UserRole enum values exist."""
-        assert UserRole.CUSTOMER is not None
-        assert UserRole.ADMIN is not None
+        """Test UserType enum values exist."""
+        assert UserType.CUSTOMER is not None
+        assert UserType.ADMIN is not None
     
     def test_otp_types(self):
         """Test OTPType enum values exist."""

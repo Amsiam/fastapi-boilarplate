@@ -5,7 +5,7 @@ from sqlmodel import select
 from seeders.base import BaseSeeder
 from app.models.user import User, Admin
 from app.models.role import Role
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.core.security import get_password_hash
 from app.core.config import settings
 
@@ -49,7 +49,7 @@ class SuperAdminSeeder(BaseSeeder):
         user = User(
             email=email,
             hashed_password=get_password_hash(password),
-            role=UserRole.ADMIN,
+            user_type=UserType.ADMIN,
             is_active=True,
             is_verified=True
         )

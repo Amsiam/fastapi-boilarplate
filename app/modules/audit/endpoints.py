@@ -8,7 +8,7 @@ from app.core.docs import doc_responses
 from app.modules.users.models import User
 from app.modules.audit.service import audit_service
 from app.core.schemas.response import SuccessResponse, PaginatedResponse
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.core.schemas.response import ErrorCode
 from app.core.exceptions import PermissionDeniedError
 
@@ -40,7 +40,7 @@ async def list_audit_logs(
     List audit logs. Only accessible by Admins.
     Supports filtering (e.g. ?action=create_user), searching (?q=...), and sorting.
     """
-    if current_user.role != UserRole.ADMIN:
+    if current_user.user_type != UserType.ADMIN:
         raise PermissionDeniedError(
             error_code=ErrorCode.PERMISSION_DENIED,
             message="Only admins can view audit logs"

@@ -12,7 +12,7 @@ from sqlmodel import select, func, or_, col
 
 from app.core.security import get_password_hash
 from app.modules.users.models import User, Admin, Customer
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.modules.users.repository import UserRepository, AdminRepository, CustomerRepository
 from app.modules.roles.repository import RoleRepository
 from app.modules.audit.service import audit_service
@@ -65,7 +65,7 @@ class UserManagementService:
         user = User(
             email=data.email,
             hashed_password=get_password_hash(data.password),
-            role=UserRole.ADMIN,
+            user_type=UserType.ADMIN,
             is_active=True,
             is_verified=True
         )
@@ -329,7 +329,7 @@ class UserManagementService:
         user = User(
             email=data.email,
             hashed_password=get_password_hash(data.password),
-            role=UserRole.CUSTOMER,
+            user_type=UserType.CUSTOMER,
             is_active=True,
             is_verified=True
         )

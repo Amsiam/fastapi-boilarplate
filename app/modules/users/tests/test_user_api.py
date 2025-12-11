@@ -43,7 +43,7 @@ async def test_create_admin(service, super_admin_id):
     user_repo = UserRepository(service.session)
     user = await user_repo.get_by_email("newadmin@test.com")
     assert user is not None
-    assert user.role == "ADMIN"
+    assert user.user_type == "ADMIN"
 
 @pytest.mark.asyncio
 async def test_soft_delete_and_resuse_email_admin(service, super_admin_id):

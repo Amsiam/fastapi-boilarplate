@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from app.modules.auth.service import AuthService
 from app.core.exceptions import AuthenticationError, ConflictError, NotFoundError
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.modules.users.models import User, Customer
 from app.core.security import hash_password, generate_otp, hash_otp, verify_otp
 from app.core.mongo import mongodb
@@ -44,7 +44,7 @@ class TestAuthService:
             last_name="Test",
             is_active=True,
             is_verified=True,
-            role=UserRole.CUSTOMER
+            user_type=UserType.CUSTOMER
         )
         session.add(user)
         await session.commit()
@@ -64,7 +64,7 @@ class TestAuthService:
             last_name="Pass",
             is_active=True,
             is_verified=True,
-            role=UserRole.CUSTOMER
+            user_type=UserType.CUSTOMER
         )
         session.add(user)
         await session.commit()
@@ -83,7 +83,7 @@ class TestAuthService:
             last_name="User",
             is_active=False,
             is_verified=True,
-            role=UserRole.CUSTOMER
+            user_type=UserType.CUSTOMER
         )
         session.add(user)
         await session.commit()
@@ -105,7 +105,7 @@ class TestAuthService:
         )
         
         assert user.email == "newcustomer@example.com"
-        assert user.role == UserRole.CUSTOMER
+        assert user.user_type == UserType.CUSTOMER
         
         # Verify customer profile
         result = await session.execute(select(Customer).where(Customer.user_id == user.id))
@@ -122,7 +122,7 @@ class TestAuthService:
             first_name="Existing",
             last_name="User",
             is_active=True,
-            role=UserRole.CUSTOMER
+            user_type=UserType.CUSTOMER
         )
         session.add(user)
         await session.commit()

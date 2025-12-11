@@ -8,7 +8,7 @@ from datetime import datetime
 from unittest.mock import AsyncMock, patch, MagicMock
 from app.modules.users.models import User
 from app.modules.roles.models import Role, Permission
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.core.security import create_access_token
 
 
@@ -18,7 +18,7 @@ def mock_admin_user():
     user = MagicMock(spec=User)
     user.id = uuid.uuid4()
     user.email = "admin@example.com"
-    user.role = UserRole.ADMIN
+    user.user_type = UserType.ADMIN
     user.is_active = True
     user.is_verified = True
     return user

@@ -21,7 +21,7 @@ from app.modules.auth.schemas import (
 from app.core.schemas.response import SuccessResponse
 from app.modules.auth.service import AuthService
 from app.modules.auth.otp_service import OTPService
-from app.constants.enums import OTPType, UserRole
+from app.constants.enums import OTPType, UserType
 from app.core.config import settings
 from app.constants.rate_limits import RateLimit
 from app.modules.audit.service import audit_service
@@ -112,7 +112,7 @@ async def login(
     
     # Check email verification for customers
     # Check email verification for customers
-    if user.role == UserRole.CUSTOMER and not user.is_verified:
+    if user.user_type == UserType.CUSTOMER and not user.is_verified:
         raise AuthenticationError(
             error_code=ErrorCode.EMAIL_NOT_VERIFIED,
             message="Please verify your email before logging in"
@@ -377,8 +377,8 @@ async def get_current_user_info(
     user_data = UserResponse.model_validate(current_user)
     
     # If user is admin, fetch role name and permissions
-    from app.constants.enums import UserRole
-    if current_user.role == UserRole.ADMIN:
+    from app.constants.enums import UserType
+    if current_user.user_type == UserType.ADMIN:
         # Get permissions
         from app.core.permissions import get_user_permissions
         permissions = await get_user_permissions(current_user, db)

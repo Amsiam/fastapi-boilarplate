@@ -139,9 +139,11 @@ async def test_auth_audit(auth_service, session):
     """Test audit logs for user registration and login."""
     from app.core.security import hash_password
     from app.modules.users.models import User
-    from app.constants.enums import UserRole
+    from app.constants.enums import UserType
     
     # Register Customer
+    # Assuming 'admin' object is defined elsewhere in the test setup or context
+    # and this line is intended to be inserted here.
     email = f"audit_auth_{uuid4()}@example.com"
     user = await auth_service.register_customer(
         email=email,

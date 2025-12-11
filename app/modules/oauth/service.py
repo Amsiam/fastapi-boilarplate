@@ -15,7 +15,7 @@ from app.modules.users.models import User, Customer
 from app.modules.oauth.models import OAuthProvider, OAuthAccount
 from app.modules.auth.repository import OAuthProviderRepository, OAuthAccountRepository
 from app.modules.users.repository import UserRepository, CustomerRepository
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.core.schemas.response import ErrorCode
 from app.core.exceptions import AuthenticationError, NotFoundError, ConflictError
 
@@ -202,7 +202,7 @@ class OAuthService:
             hashed_password="",  # No password for OAuth users
             is_active=True,
             is_verified=True,  # Trusted provider
-            role=UserRole.CUSTOMER
+            user_type=UserType.CUSTOMER
         )
         self.db.add(user)
         await self.db.flush()

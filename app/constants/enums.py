@@ -4,8 +4,8 @@ Enums for the application.
 from enum import Enum
 
 
-class UserRole(str, Enum):
-    """User role types."""
+class UserType(str, Enum):
+    """User type discriminator."""
     ADMIN = "ADMIN"
     CUSTOMER = "CUSTOMER"
 

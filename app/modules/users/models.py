@@ -8,7 +8,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import Column, JSON
 from sqlmodel import Field, Relationship, SQLModel
 
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 
 
 class User(SQLModel, table=True):
@@ -20,7 +20,7 @@ class User(SQLModel, table=True):
     hashed_password: str = Field(max_length=255)
     is_active: bool = Field(default=True)
     is_verified: bool = Field(default=False)
-    role: UserRole = Field(sa_column_kwargs={"nullable": False})
+    user_type: UserType = Field(sa_column_kwargs={"nullable": False})
     deleted_at: Optional[datetime] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)

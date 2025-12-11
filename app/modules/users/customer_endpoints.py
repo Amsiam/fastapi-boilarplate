@@ -13,13 +13,13 @@ from app.modules.users.service import UserManagementService
 from app.modules.users.schemas import CustomerCreate, CustomerUpdate, CustomerDetailResponse
 from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.modules.users.models import User
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 
 router = APIRouter(tags=["Customer Management"])
 
 def check_super_admin(user: User):
     """Ensure user is an admin."""
-    if user.role != UserRole.ADMIN:
+    if user.user_type != UserType.ADMIN:
          from fastapi import HTTPException
          raise HTTPException(status_code=403, detail="Not authorized")
     return user

@@ -175,13 +175,13 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     Returns:
         List of permission codes
     """
-    from app.constants.enums import UserRole
+    from app.constants.enums import UserType
     from app.modules.users.repository import AdminRepository
     from app.modules.roles.repository import RoleRepository
     from app.core.cache import get_cache, set_cache, user_permissions_key
     
     # Customers have fixed permissions (no caching needed)
-    if user.role == UserRole.CUSTOMER:
+    if user.user_type == UserType.CUSTOMER:
         return DEFAULT_ROLE_PERMISSIONS["CUSTOMER"]
     
     # Check cache first
@@ -312,11 +312,11 @@ def require_admin():
         current_user: User = Depends(get_current_active_user)
     ) -> User:
         """Check if user is an admin."""
-        from app.constants.enums import UserRole
+        from app.constants.enums import UserType
         from app.core.exceptions import PermissionDeniedError
         from app.core.schemas.response import ErrorCode
         
-        if current_user.role != UserRole.ADMIN:
+        if current_user.user_type != UserType.ADMIN:
             raise PermissionDeniedError(
                 error_code=ErrorCode.PERMISSION_DENIED,
                 message="Admin access required"

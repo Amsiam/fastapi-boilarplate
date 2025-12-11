@@ -27,7 +27,7 @@ from app.core.cache import delete_cache, user_permissions_key
 from app.core.schemas.response import ErrorCode
 from app.modules.users.models import User, Customer
 from app.modules.auth.token_models import RefreshToken
-from app.constants.enums import UserRole
+from app.constants.enums import UserType
 from app.modules.users.repository import UserRepository, CustomerRepository
 from app.modules.auth.repository import RefreshTokenRepository
 from app.modules.audit.service import audit_service
@@ -81,7 +81,7 @@ class AuthService:
         user = User(
             email=email,
             hashed_password=get_password_hash(password),
-            role=UserRole.CUSTOMER,
+            user_type=UserType.CUSTOMER,
             is_active=True,
             is_verified=False  # Requires email verification
         )
@@ -152,7 +152,7 @@ class AuthService:
             actor_id=user.id,
             target_id=str(user.id),
             target_type="user",
-            details={"email": email, "role": user.role.value},
+            details={"email": email, "role": user.user_type.value},
             request=request
         )
         
@@ -170,7 +170,7 @@ class AuthService:
         """
         # Create access token
         access_token = create_access_token(
-            data={"sub": str(user.id), "role": user.role.value}
+            data={"sub": str(user.id), "user_type": user.user_type.value}
         )
         
         # Create refresh token
