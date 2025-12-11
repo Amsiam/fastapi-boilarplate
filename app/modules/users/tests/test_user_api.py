@@ -112,3 +112,51 @@ async def test_update_customer(service, super_admin_id):
     assert len(logs) == 1
     assert logs[0]["old_values"]["first_name"] == "Old"
     assert logs[0]["new_values"]["first_name"] == "New"
+
+@pytest.mark.asyncio
+async def test_list_customers_filtering(service, super_admin_id):
+    """Test filtering, searching, and sorting customers."""
+    # Create test data
+    c1 = await service.create_customer(
+        CustomerCreate(email="alice@filtering-test.com", password="password123", first_name="Alice", last_name="A", phone_number="111"), 
+        actor_id=super_admin_id
+    )
+    c2 = await service.create_customer(
+        CustomerCreate(email="bob@filtering-test.com", password="password123", first_name="Bob", last_name="B", phone_number="222"), 
+        actor_id=super_admin_id
+    )
+    c3 = await service.create_customer(
+        CustomerCreate(email="charlie@filtering-test.com", password="password123", first_name="Charlie", last_name="C", phone_number="333"), 
+        actor_id=super_admin_id
+    )
+    
+    # 1. Test Filter (User email)
+    items, total = await service.list_customers(filters={"email": "alice@filtering-test.com"})
+    assert total == 1
+    assert items[0].email == "alice@filtering-test.com"
+    
+    # 2. Test Filter (Customer first_name)
+    items, total = await service.list_customers(filters={"first_name": "Bob"})
+    assert total >= 1
+    assert items[0].first_name == "Bob"
+    
+    # 3. Test Search (Combined fields)
+    items, total = await service.list_customers(search_query="filtering-test")
+    # Should match all 3
+    assert total == 3
+    
+    # Search "111" -> Alice
+    items, total = await service.list_customers(search_query="111")
+    assert total == 1
+    assert items[0].first_name == "Alice"
+    
+    # 4. Test Sorting (Filter to our subset first)
+    filters = {"email__like": "filtering-test"}
+    
+    # Descending (default created_at) - C, B, A
+    items, _ = await service.list_customers(filters=filters, sort_by="first_name", sort_order="desc")
+    assert items[0].first_name == "Charlie"
+    
+    # Ascending
+    items, _ = await service.list_customers(filters=filters, sort_by="first_name", sort_order="asc")
+    assert items[0].first_name == "Alice"

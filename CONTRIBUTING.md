@@ -63,6 +63,7 @@ The project is organized by **Modules** (Domain-Driven Design).
 - **Response Models**: All endpoints must define a `response_model` using the generic `ResponseModel[T]` wrapper.
 - **Error Handling**: Use `create_error_responses` in `app.core.docs` to document error responses in OpenAPI.
 - **Dependency Injection**: Use FastAPI's dependency injection for database sessions (`get_db`) and other shared resources.
+- **Filtering**: Use the scalable filtering system (`app.core.filtering`). Implement `get_list` in repositories inheriting from `BaseRepository` and expose standard parameters (`q`, `sort`, `order`) in endpoints.
 
 ### 4. Database Migrations
 

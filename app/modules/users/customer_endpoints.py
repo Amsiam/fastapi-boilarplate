@@ -60,13 +60,33 @@ async def list_customers(
     request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    q: str = Query(None, description="Search term"),
+    sort: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="Sort order (asc/desc)"),
+    email: str = Query(None, description="Filter by email"),
+    first_name: str = Query(None, description="Filter by first name"),
+    is_active: bool = Query(None, description="Filter by active status"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """List customers."""
     check_super_admin(current_user)
     service = UserManagementService(db)
-    items, total = await service.list_customers(skip, limit)
+    
+    # Construct filters dict
+    filters = {}
+    if email: filters["email"] = email
+    if first_name: filters["first_name"] = first_name
+    if is_active is not None: filters["is_active"] = is_active
+
+    items, total = await service.list_customers(
+        skip=skip, 
+        limit=limit,
+        filters=filters,
+        search_query=q,
+        sort_by=sort,
+        sort_order=order
+    )
     
     page = (skip // limit) + 1 if limit > 0 else 1
     return SuccessResponse(

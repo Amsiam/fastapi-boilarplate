@@ -214,6 +214,18 @@ Use the `make:module` command to quickly generate standard module structures:
 - ✅ Database seeders system
 - ✅ Management CLI commands
 
+### Filtering & Pagination
+
+The API supports standardized listing parameters across endpoints (e.g., Customers, Roles):
+
+- **Pagination**: `page`, `per_page` (or `skip`, `limit`)
+- **Search**: `q=term` (searches across relevant fields)
+- **Sorting**: `sort=field` and `order=asc|desc`
+- **Filtering**: Endpoint-specific fields (e.g., `email=foo`, `is_active=true`)
+
+Example:
+`GET /api/v1/admin/customers?q=alice&sort=created_at&order=desc&is_active=true`
+
 ## Project Structure
 
 ```text

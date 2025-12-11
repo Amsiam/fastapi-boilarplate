@@ -276,10 +276,46 @@ class UserManagementService:
             updated_at=user.updated_at
         )
 
-    async def list_customers(self, skip: int = 0, limit: int = 20) -> Tuple[List[CustomerDetailResponse], int]:
+    async def list_customers(
+        self, 
+        skip: int = 0, 
+        limit: int = 20,
+        filters: Optional[dict] = None,
+        search_query: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
+    ) -> Tuple[List[CustomerDetailResponse], int]:
         """List customers with pagination."""
+        from app.core.filtering import apply_filters, apply_sorting, SortOrder
+        from sqlmodel import or_, col
+
         query = select(Customer, User).join(User).where(User.deleted_at == None)
-        count_query = select(func.count()).select_from(Customer).join(User).where(User.deleted_at == None)
+
+        if filters:
+            # Apply filters to User model (e.g. email, is_active)
+            query = apply_filters(query, User, filters)
+            # Apply filters to Customer model (e.g. first_name)
+            query = apply_filters(query, Customer, filters)
+
+        if search_query:
+            # Custom search across both tables
+            query = query.where(or_(
+                col(User.email).ilike(f"%{search_query}%"),
+                col(Customer.first_name).ilike(f"%{search_query}%"),
+                col(Customer.last_name).ilike(f"%{search_query}%"),
+                col(Customer.phone_number).ilike(f"%{search_query}%")
+            ))
+
+        # Sort
+        # Try to sort on User first, then Customer
+        if hasattr(User, sort_by):
+             query = apply_sorting(query, User, sort_by, SortOrder(sort_order))
+        elif hasattr(Customer, sort_by):
+             query = apply_sorting(query, Customer, sort_by, SortOrder(sort_order))
+        else:
+             query = query.order_by(User.created_at.desc())
+
+        count_query = select(func.count()).select_from(query.subquery())
         
         total = (await self.session.execute(count_query)).scalar_one()
         result = await self.session.execute(query.offset(skip).limit(limit))

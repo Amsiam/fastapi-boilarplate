@@ -68,6 +68,10 @@ async def create_role(
 async def list_roles(
     page: int = Query(default=1, ge=1, description="Page number"),
     per_page: int = Query(default=20, ge=1, le=100, description="Items per page"),
+    name: str = Query(None, description="Filter by role name"),
+    q: str = Query(None, description="Search term"),
+    sort: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="Sort order (asc/desc)"),
     db: AsyncSession = Depends(get_db),
     current_user = Depends(require_permissions([PermissionEnum.ROLES_READ]))
 ):
@@ -79,7 +83,14 @@ async def list_roles(
     - Returns paginated results with metadata
     """
     role_service = RoleService(db)
-    role_data = await role_service.list_roles(page=page, per_page=per_page)
+    role_data = await role_service.list_roles(
+        page=page, 
+        per_page=per_page,
+        name=name,
+        search=q,
+        sort=sort,
+        order=order
+    )
     
     return SuccessResponse(
         message="Roles retrieved successfully",

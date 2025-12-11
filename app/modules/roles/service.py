@@ -66,7 +66,15 @@ class RoleService:
         
         return RoleResponse.model_validate(role)
     
-    async def list_roles(self, page: int = 1, per_page: int = 20) -> Dict[str, Any]:
+    async def list_roles(
+        self, 
+        page: int = 1, 
+        per_page: int = 20,
+        name: Optional[str] = None,
+        search: Optional[str] = None,
+        sort: str = "created_at",
+        order: str = "desc"
+    ) -> Dict[str, Any]:
         """
         List all roles with permission counts and pagination.
         """
@@ -81,7 +89,12 @@ class RoleService:
         # Use repository method for data access with pagination
         skip = (page - 1) * per_page
         roles_with_counts = await self.role_repo.list_with_permission_counts(
-            skip=skip, limit=per_page
+            skip=skip, 
+            limit=per_page,
+            filters={"name": name} if name else None,
+            search_query=search,
+            sort_by=sort,
+            sort_order=order
         )
         
         total_pages = (total + per_page - 1) // per_page if per_page > 0 else 0

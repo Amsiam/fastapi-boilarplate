@@ -258,3 +258,48 @@ class TestRoleHappyPath:
                 assert data["success"] is True
                 assert data["data"]["name"] == "TEST_ROLE"
 
+    async def test_list_roles_filtering(self, client):
+        """Test listing roles with filters passes params to service."""
+        # Mock dependencies
+        mock_user = MagicMock()
+        mock_user.id = uuid.uuid4()
+        
+        from app.core.database import get_db
+        from app.core.permissions import get_current_user
+        from app.main import app
+        
+        # Override auth
+        app.dependency_overrides[get_current_user] = lambda: mock_user
+        
+        # Patch Service and Permissions
+        with patch("app.modules.roles.endpoints.RoleService") as MockService, \
+             patch("app.core.permissions.get_user_permissions", new_callable=AsyncMock) as mock_get_perms:
+            
+            # Grant permissions
+            mock_get_perms.return_value = ["*"]
+
+            service_instance = MockService.return_value
+            # Mock return value
+            service_instance.list_roles = AsyncMock(return_value={
+                "items": [], 
+                "total": 0, 
+                "page": 1, 
+                "per_page": 20
+            })
+            
+            # Make request with filters
+            response = await client.get(
+                "/api/v1/admin/roles?name=Manager&q=searchterm&sort=name&order=asc"
+            )
+            
+            assert response.status_code == 200
+            
+            # Verify parameters were passed - Use explicit keyword args in call check
+            service_instance.list_roles.assert_called_once()
+            call_kwargs = service_instance.list_roles.call_args.kwargs
+            
+            assert call_kwargs["name"] == "Manager"
+            assert call_kwargs["search"] == "searchterm"
+            assert call_kwargs["sort"] == "name"
+            assert call_kwargs["order"] == "asc"
+

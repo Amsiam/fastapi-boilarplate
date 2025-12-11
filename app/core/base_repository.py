@@ -56,6 +56,7 @@ class BaseRepository(Generic[ModelType]):
         )
         return result.scalar_one_or_none()
     
+
     async def get_multi(
         self,
         skip: int = 0,
@@ -63,19 +64,55 @@ class BaseRepository(Generic[ModelType]):
     ) -> List[ModelType]:
         """
         Get multiple records.
-        
-        Args:
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-            
-        Returns:
-            List of model instances
         """
         result = await self.db.execute(
             select(self.model).offset(skip).limit(limit)
         )
         return result.scalars().all()
-    
+
+    async def get_list(
+        self,
+        filters: Optional[dict] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search_query: Optional[str] = None,
+        search_fields: Optional[List[str]] = None,
+        skip: int = 0,
+        limit: int = 100
+    ) -> tuple[List[ModelType], int]:
+        """
+        Get paginated list with filtering, sorting, and search.
+        Returns (items, total_count).
+        """
+        from app.core.filtering import apply_filters, apply_sorting, apply_search, SortOrder
+
+        # Start query
+        query = select(self.model)
+
+        # Apply Filters
+        if filters:
+            query = apply_filters(query, self.model, filters)
+
+        # Apply Search
+        if search_query and search_fields:
+            query = apply_search(query, self.model, search_query, search_fields)
+
+        # Count total (before pagination but after filter/search)
+        from sqlalchemy import func
+        count_query = select(func.count()).select_from(query.subquery())
+        total_result = await self.db.execute(count_query)
+        total = total_result.scalar_one()
+
+        # Apply Sorting
+        query = apply_sorting(query, self.model, sort_by, SortOrder(sort_order))
+
+        # Apply Pagination
+        query = query.offset(skip).limit(limit)
+
+        # Execute
+        result = await self.db.execute(query)
+        return result.scalars().all(), total
+
     async def create(self, obj_in: ModelType) -> ModelType:
         """
         Create a new record.

@@ -51,30 +51,46 @@ class RoleRepository(BaseRepository[Role]):
         return (role, permissions)
     
     async def list_with_permission_counts(
-        self, skip: int = 0, limit: int = 20
+        self, 
+        skip: int = 0, 
+        limit: int = 20,
+        filters: Optional[dict] = None,
+        search_query: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
     ) -> List[tuple[Role, int]]:
         """
         Get all roles with their permission counts.
         Optimized to avoid N+1 queries using a single JOIN and GROUP BY.
         
-        Args:
-            skip: Number of records to skip
-            limit: Maximum number of records to return
-        
         Returns:
             List of tuples (role, permission_count)
         """
-        result = await self.db.execute(
-            select(
-                Role,
-                func.count(RolePermission.permission_id).label("permission_count")
-            )
-            .outerjoin(RolePermission, Role.id == RolePermission.role_id)
-            .group_by(Role.id)
-            .order_by(Role.created_at.desc())
-            .offset(skip)
-            .limit(limit)
-        )
+        from app.core.filtering import apply_filters, apply_search, apply_sorting, SortOrder
+
+        query = select(
+            Role,
+            func.count(RolePermission.permission_id).label("permission_count")
+        ).outerjoin(RolePermission, Role.id == RolePermission.role_id)
+
+        # Apply Filters
+        if filters:
+            query = apply_filters(query, Role, filters)
+        
+        # Apply Search
+        if search_query:
+            # Search in name and description
+            query = apply_search(query, Role, search_query, ["name", "description"])
+
+        query = query.group_by(Role.id)
+
+        # Apply Sorting
+        query = apply_sorting(query, Role, sort_by, SortOrder(sort_order))
+
+        # Pagination
+        query = query.offset(skip).limit(limit)
+
+        result = await self.db.execute(query)
         
         return result.all()
     
