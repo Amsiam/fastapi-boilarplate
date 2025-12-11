@@ -184,7 +184,8 @@ class RoleService:
         if role.is_system:
             raise ValidationError(
                 error_code=ErrorCode.CANNOT_MODIFY_SYSTEM_ROLE,
-                message="Cannot modify system roles"
+                message="Cannot modify system roles",
+                field="role_id"
             )
         
         old_values = {
@@ -233,7 +234,8 @@ class RoleService:
         if role.is_system:
             raise ValidationError(
                 error_code=ErrorCode.CANNOT_MODIFY_SYSTEM_ROLE,
-                message="Cannot delete system roles"
+                message="Cannot delete system roles",
+                field="role_id"
             )
         
         await self.role_repo.delete(str(role_id))

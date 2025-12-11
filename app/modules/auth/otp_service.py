@@ -122,7 +122,8 @@ class OTPService:
         if not otp_data:
             raise ValidationError(
                 error_code=ErrorCode.OTP_EXPIRED,
-                message="OTP has expired or does not exist"
+                message="OTP has expired or does not exist",
+                field="otp_code"
             )
         
         # Check attempts
@@ -130,7 +131,8 @@ class OTPService:
             await delete_cache(cache_key)
             raise ValidationError(
                 error_code=ErrorCode.OTP_MAX_ATTEMPTS,
-                message="Maximum OTP verification attempts exceeded"
+                message="Maximum OTP verification attempts exceeded",
+                field="otp_code"
             )
         
         # Verify OTP
@@ -148,7 +150,8 @@ class OTPService:
             remaining = settings.OTP_MAX_ATTEMPTS - otp_data["attempts"]
             raise ValidationError(
                 error_code=ErrorCode.OTP_INVALID,
-                message=f"Invalid OTP. {remaining} attempts remaining."
+                message=f"Invalid OTP. {remaining} attempts remaining.",
+                field="otp_code"
             )
         
         # Valid OTP - delete it (single use)
