@@ -1,7 +1,7 @@
 """
 Admin Management Endpoints.
 """
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Query, status
 
@@ -60,13 +60,35 @@ async def list_admins(
     request: Request,
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
+    q: Optional[str] = Query(None, description="Search term"),
+    sort: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="Sort order (asc/desc)"),
+    username: Optional[str] = Query(None, description="Filter by username"),
+    email: Optional[str] = Query(None, description="Filter by email"),
+    is_active: Optional[bool] = Query(None, description="Filter by active status"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ):
     """List admins."""
     check_super_admin(current_user)
     service = UserManagementService(db)
-    items, total = await service.list_admins(skip, limit)
+    
+    filters = {}
+    if username:
+        filters["username"] = username
+    if email:
+        filters["email"] = email
+    if is_active is not None:
+        filters["is_active"] = is_active
+        
+    items, total = await service.list_admins(
+        skip=skip, 
+        limit=limit, 
+        filters=filters, 
+        search_query=q, 
+        sort_by=sort, 
+        sort_order=order
+    )
     
     page = (skip // limit) + 1 if limit > 0 else 1
     return SuccessResponse(

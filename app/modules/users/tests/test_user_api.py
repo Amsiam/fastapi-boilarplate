@@ -160,3 +160,48 @@ async def test_list_customers_filtering(service, super_admin_id):
     # Ascending
     items, _ = await service.list_customers(filters=filters, sort_by="first_name", sort_order="asc")
     assert items[0].first_name == "Alice"
+
+@pytest.mark.asyncio
+async def test_list_admins_filtering(service, super_admin_id):
+    """Test filtering, searching, and sorting admins."""
+    # Create test admins
+    # Note: create_admin takes AdminCreate which uses username/email
+    a1 = await service.create_admin(
+        AdminCreate(email="alice_admin@filtering-test.com", password="password123", username="alice_admin"), 
+        actor_id=super_admin_id
+    )
+    a2 = await service.create_admin(
+        AdminCreate(email="bob_admin@filtering-test.com", password="password123", username="bob_admin"), 
+        actor_id=super_admin_id
+    )
+    
+    # 1. Test Filter (User email)
+    items, total = await service.list_admins(filters={"email": "alice_admin@filtering-test.com"})
+    assert total == 1
+    assert items[0].email == "alice_admin@filtering-test.com"
+    
+    # 2. Test Filter (Admin username)
+    items, total = await service.list_admins(filters={"username": "bob_admin"})
+    assert total >= 1
+    assert items[0].username == "bob_admin"
+    
+    # 3. Test Search (Combined fields - e.g. email)
+    items, total = await service.list_admins(search_query="filtering-test")
+    # Should match both
+    assert total == 2
+    
+    # Search username
+    items, total = await service.list_admins(search_query="alice_admin")
+    assert total == 1
+    assert items[0].username == "alice_admin"
+    
+    # 4. Test Sorting (Filter to our subset first)
+    filters = {"email__like": "filtering-test"}
+    
+    # Descending (default created_at) - Bob, Alice
+    items, _ = await service.list_admins(filters=filters, sort_by="username", sort_order="desc")
+    assert items[0].username == "bob_admin"
+    
+    # Ascending
+    items, _ = await service.list_admins(filters=filters, sort_by="username", sort_order="asc")
+    assert items[0].username == "alice_admin"

@@ -1,13 +1,14 @@
+
 """
 User Management Service for Admins and Customers.
 Handles CRUD operations, Soft Deletes, and Audit Logging.
 """
-from typing import List, Optional, Tuple, Dict
+from typing import List, Optional, Tuple, Dict, Any
 from uuid import UUID
 from fastapi import Request
 
 from sqlmodel.ext.asyncio.session import AsyncSession
-from sqlmodel import select, func
+from sqlmodel import select, func, or_, col
 
 from app.core.security import get_password_hash
 from app.modules.users.models import User, Admin, Customer
@@ -94,12 +95,87 @@ class UserManagementService:
             updated_at=user.updated_at
         )
 
-    async def list_admins(self, skip: int = 0, limit: int = 20) -> Tuple[List[AdminDetailResponse], int]:
-        """List admins with pagination."""
+    async def list_admins(
+        self, 
+        skip: int = 0, 
+        limit: int = 20,
+        filters: Optional[Dict[str, Any]] = None,
+        search_query: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc"
+    ) -> Tuple[List[AdminDetailResponse], int]:
+        """List admins with pagination, filtering, searching and sorting."""
+        from app.core.filtering import apply_filters, apply_sorting, apply_search
+        
+        # Base query
         query = select(Admin, User).join(User).where(User.deleted_at == None)
-        count_query = select(func.count()).select_from(Admin).join(User).where(User.deleted_at == None)
+        
+        # Apply filters
+        if filters:
+            # We need to handle filtering on both Admin and User models
+            # Simple heuristic: try both? Or separate?
+            # For now, let's try applying to User first (most common), then Admin
+            # But apply_filters on Joined query is tricky with multiple models.
+            # Best approach for joined query provided by apply_filters is to pass the primary model?
+            # Actually apply_filters takes 'model' to know fields.
+            # Let's manually apply for specific fields or iterate.
+            
+            # Better approach: 
+            # We can use apply_filters for User fields and Admin fields separately if we split the dict.
+            # Or just pass the specific model for specific keys.
+            
+            user_filters = {}
+            admin_filters = {}
+            
+            for k, v in filters.items():
+                if hasattr(User, k.split("__")[0]):
+                    user_filters[k] = v
+                elif hasattr(Admin, k.split("__")[0]):
+                    admin_filters[k] = v
+                    
+            if user_filters:
+                query = apply_filters(query, User, user_filters)
+            if admin_filters:
+                query = apply_filters(query, Admin, admin_filters)
+
+        # Apply Search
+        if search_query:
+            # Search across User.email, Admin.username
+            query = apply_search(query, User, search_query, ["email"])
+            # We want OR condition across tables. apply_search does OR within model.
+            # Custom search for joined tables:
+            from sqlmodel import or_, col
+            query = query.where(
+                or_(
+                    col(User.email).ilike(f"%{search_query}%"),
+                    col(Admin.username).ilike(f"%{search_query}%")
+                )
+            )
+
+        # Apply Sorting
+        if hasattr(User, sort_by):
+            query = apply_sorting(query, User, sort_by, sort_order)
+        elif hasattr(Admin, sort_by):
+            query = apply_sorting(query, Admin, sort_by, sort_order)
+        else:
+            # Default to User.created_at
+            query = apply_sorting(query, User, "created_at", sort_order)
+            
+        # Get total count (inefficient but simple for now: wrap subquery)
+        # For accurate count with filters, we need to count the results of the filtered query
+        # But `count_query` needs to be separate.
+        # Simplest: execute count on the filtered query without limit/offset? 
+        # Or duplicate logic. Duplicating logic is safer for SQLModel.
+        
+        # Re-construct query for count or use subquery
+        # func.count() on subquery
+        from sqlalchemy import func
+        count_subquery = query.subquery()
+        count_query = select(func.count()).select_from(count_subquery)
         
         total = (await self.session.execute(count_query)).scalar_one()
+        
+        # Apply pagination
         result = await self.session.execute(query.offset(skip).limit(limit))
         rows = result.all()
         
