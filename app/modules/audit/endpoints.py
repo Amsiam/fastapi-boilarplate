@@ -7,7 +7,7 @@ from app.core.permissions import get_current_active_user
 from app.core.docs import doc_responses
 from app.modules.users.models import User
 from app.modules.audit.service import audit_service
-from app.core.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.constants.enums import UserRole
 from app.core.schemas.response import ErrorCode
 from app.core.exceptions import PermissionDeniedError
@@ -16,7 +16,7 @@ router = APIRouter(tags=["Audit Logs"])
 
 @router.get(
     "/",
-    response_model=SuccessResponse[Dict[str, Any]],
+    response_model=PaginatedResponse[Dict[str, Any]],
     summary="List Audit Logs",
     responses=doc_responses(
         success_message="Audit logs retrieved successfully",

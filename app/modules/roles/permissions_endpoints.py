@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
 from app.modules.roles.schemas import PermissionCreateRequest, PermissionResponse
-from app.core.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.modules.roles.service import PermissionService
 from app.constants import PermissionEnum
 
@@ -22,7 +22,7 @@ router = APIRouter(tags=["Permission Management"])
 
 @router.get(
     "",
-    response_model=SuccessResponse[list[PermissionResponse]],
+    response_model=PaginatedResponse[PermissionResponse],
     summary="List Permissions",
     responses=doc_responses(
         success_message="Permissions retrieved successfully",

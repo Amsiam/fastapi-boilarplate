@@ -177,7 +177,7 @@ def doc_responses(
     success_example: Optional[Any] = None,
     success_message: str = "Operation completed successfully",
     success_status_code: int = status.HTTP_200_OK,
-    errors: tuple = (400, 401, 403, 404, 422, 500)
+    errors: tuple = ()
 ) -> Dict[int | str, Dict[str, Any]]:
     """
     Create complete response documentation (success + errors) for an endpoint.

@@ -79,28 +79,17 @@ class SuccessResponse(BaseModel, Generic[T]):
     
 
 
-class PaginatedResponse(BaseModel, Generic[T]):
+class PaginatedData(BaseModel, Generic[T]):
+    """Paginated data structure."""
+    items: List[T] = Field(..., description="List of items")
+    total: int = Field(..., description="Total count")
+    page: int = Field(..., description="Current page")
+    per_page: int = Field(..., description="Items per page")
+
+
+class PaginatedResponse(SuccessResponse[PaginatedData[T]]):
     """Paginated response wrapper."""
-    success: bool = Field(True, description="Always true for success")
-    data: List[T] = Field(..., description="List of items")
-    pagination: Dict[str, int] = Field(
-        ...,
-        description="Pagination metadata"
-    )
-    
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "success": True,
-                "data": [],
-                "pagination": {
-                    "total": 100,
-                    "page": 1,
-                    "per_page": 20,
-                    "pages": 5
-                }
-            }
-        }
+    pass
 
 
 # Helper functions to create error responses

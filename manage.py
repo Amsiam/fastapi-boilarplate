@@ -249,18 +249,29 @@ class {class_prefix}Service:
         f.write(service_content)
 
     # 6. endpoints.py
-    endpoints_content = f'''from typing import List
+    endpoints_content = f'''from typing import List, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
-from app.core.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse, PaginatedResponse
+from app.core.docs import doc_responses
 from app.modules.{module_name}.service import {class_prefix}Service
 from app.modules.{module_name}.schemas import {class_prefix}Response, {class_prefix}Create, {class_prefix}Update
 
 router = APIRouter()
 
-@router.post("/", response_model=SuccessResponse[{class_prefix}Response], status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/",
+    response_model=SuccessResponse[{class_prefix}Response],
+    status_code=status.HTTP_201_CREATED,
+    summary="Create {display_name}",
+    responses=doc_responses(
+        success_message="{display_name} created successfully",
+        success_status_code=status.HTTP_201_CREATED,
+        errors=(400, 422)
+    )
+)
 async def create_{module_name}(
     data: {class_prefix}Create,
     session: AsyncSession = Depends(get_db)
@@ -269,7 +280,15 @@ async def create_{module_name}(
     result = await service.create(data)
     return SuccessResponse(message="{display_name} created successfully", data=result)
 
-@router.get("/", response_model=SuccessResponse[List[{class_prefix}Response]])
+@router.get(
+    "/",
+    response_model=PaginatedResponse[{class_prefix}Response],
+    summary="List {display_name}s",
+    responses=doc_responses(
+        success_message="{display_name}s retrieved successfully",
+        errors=(401, 403)
+    )
+)
 async def list_{module_name}s(
     session: AsyncSession = Depends(get_db)
 ):
@@ -277,7 +296,15 @@ async def list_{module_name}s(
     result = await service.get_all()
     return SuccessResponse(message="{display_name}s retrieved successfully", data=result)
 
-@router.get("/{{id}}", response_model=SuccessResponse[{class_prefix}Response])
+@router.get(
+    "/{{id}}",
+    response_model=SuccessResponse[{class_prefix}Response],
+    summary="Get {display_name}",
+    responses=doc_responses(
+        success_message="{display_name} retrieved successfully",
+        errors=(401, 403, 404)
+    )
+)
 async def get_{module_name}(
     id: UUID,
     session: AsyncSession = Depends(get_db)
@@ -286,7 +313,15 @@ async def get_{module_name}(
     result = await service.get_by_id(id)
     return SuccessResponse(message="{display_name} retrieved successfully", data=result)
 
-@router.put("/{{id}}", response_model=SuccessResponse[{class_prefix}Response])
+@router.put(
+    "/{{id}}",
+    response_model=SuccessResponse[{class_prefix}Response],
+    summary="Update {display_name}",
+    responses=doc_responses(
+        success_message="{display_name} updated successfully",
+        errors=(401, 403, 404, 422)
+    )
+)
 async def update_{module_name}(
     id: UUID,
     data: {class_prefix}Update,
@@ -296,7 +331,16 @@ async def update_{module_name}(
     result = await service.update(id, data)
     return SuccessResponse(message="{display_name} updated successfully", data=result)
 
-@router.delete("/{{id}}", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
+@router.delete(
+    "/{{id}}",
+    status_code=status.HTTP_200_OK,
+    response_model=SuccessResponse[None],
+    summary="Delete {display_name}",
+    responses=doc_responses(
+        success_message="{display_name} deleted successfully",
+        errors=(401, 403, 404)
+    )
+)
 async def delete_{module_name}(
     id: UUID,
     session: AsyncSession = Depends(get_db)

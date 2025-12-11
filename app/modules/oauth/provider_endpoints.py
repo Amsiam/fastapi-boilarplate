@@ -9,7 +9,7 @@ from typing import Dict, Any, List
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
-from app.core.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.modules.oauth.schemas import (
     OAuthProviderCreateRequest,
     OAuthProviderUpdateRequest,
@@ -70,7 +70,7 @@ async def create_oauth_provider(
 
 @router.get(
     "",
-    response_model=SuccessResponse[Dict[str, Any]],
+    response_model=PaginatedResponse[Dict[str, Any]],
     summary="List OAuth Providers",
     responses=doc_responses(
         success_message="OAuth providers retrieved successfully",

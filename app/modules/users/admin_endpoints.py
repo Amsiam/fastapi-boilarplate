@@ -11,7 +11,7 @@ from app.core.permissions import get_current_active_user
 from app.core.docs import doc_responses
 from app.modules.users.service import UserManagementService
 from app.modules.users.schemas import AdminCreate, AdminUpdate, AdminDetailResponse
-from app.core.schemas.response import SuccessResponse
+from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.modules.users.models import User
 from app.constants.enums import UserRole
 
@@ -49,7 +49,7 @@ async def create_admin(
 
 @router.get(
     "/",
-    response_model=SuccessResponse[Dict[str, Any]],
+    response_model=PaginatedResponse[AdminDetailResponse],
     summary="List Admins",
     responses=doc_responses(
         success_message="Admins retrieved successfully",
