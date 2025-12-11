@@ -62,6 +62,7 @@ The project is organized by **Modules** (Domain-Driven Design).
 
 - **Response Models**: All endpoints must define a `response_model` using the generic `ResponseModel[T]` wrapper.
 - **Error Handling**: Use `create_error_responses` in `app.core.docs` to document error responses in OpenAPI.
+  - **Validation Errors**: When raising `ValidationError`, ALWAYS provide the `field` argument to map the error to a specific form field (e.g., `field="password"`).
 - **Dependency Injection**: Use FastAPI's dependency injection for database sessions (`get_db`) and other shared resources.
 - **Filtering**: Use the scalable filtering system (`app.core.filtering`).
 
@@ -101,6 +102,7 @@ The project is organized by **Modules** (Domain-Driven Design).
 ### 4. Database Migrations
 
 We use **Alembic** for database migrations.
+**Note**: Alembic is configured to automatically discover models in `app/modules/*/models.py`. You do NOT need to edit `alembic/env.py` when creating new modules.
 
 - **Create a new migration**:
 

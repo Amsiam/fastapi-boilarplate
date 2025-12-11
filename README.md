@@ -211,6 +211,7 @@ Use the `make:module` command to quickly generate standard module structures:
 - ✅ Swagger/OpenAPI documentation
 - ✅ Consistent API response format
   - See [Error Codes](docs/error_codes.md) for full list
+  - **Validation Errors**: Standardized error response structure including specific `field` identification for frontend mapping.
 - ✅ Database seeders system
 - ✅ Management CLI commands
 
