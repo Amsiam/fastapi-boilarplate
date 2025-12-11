@@ -164,44 +164,54 @@ async def test_list_customers_filtering(service, super_admin_id):
 @pytest.mark.asyncio
 async def test_list_admins_filtering(service, super_admin_id):
     """Test filtering, searching, and sorting admins."""
+    import uuid
+    uid = str(uuid.uuid4())[:8]
+    email1 = f"alice_{uid}@filtering-test.com"
+    email2 = f"bob_{uid}@filtering-test.com"
+    
     # Create test admins
     # Note: create_admin takes AdminCreate which uses username/email
     a1 = await service.create_admin(
-        AdminCreate(email="alice_admin@filtering-test.com", password="password123", username="alice_admin"), 
+        AdminCreate(email=email1, password="password123", username=f"alice_{uid}"), 
         actor_id=super_admin_id
     )
     a2 = await service.create_admin(
-        AdminCreate(email="bob_admin@filtering-test.com", password="password123", username="bob_admin"), 
+        AdminCreate(email=email2, password="password123", username=f"bob_{uid}"), 
         actor_id=super_admin_id
     )
     
     # 1. Test Filter (User email)
-    items, total = await service.list_admins(filters={"email": "alice_admin@filtering-test.com"})
+    items, total = await service.list_admins(filters={"email": email1})
     assert total == 1
-    assert items[0].email == "alice_admin@filtering-test.com"
+    assert items[0].email == email1
     
     # 2. Test Filter (Admin username)
-    items, total = await service.list_admins(filters={"username": "bob_admin"})
+    items, total = await service.list_admins(filters={"username": f"bob_{uid}"})
     assert total >= 1
-    assert items[0].username == "bob_admin"
+    assert items[0].username == f"bob_{uid}"
     
     # 3. Test Search (Combined fields - e.g. email)
-    items, total = await service.list_admins(search_query="filtering-test")
-    # Should match both
+    items, total = await service.list_admins(search_query=f"filtering-test.com")
+    # Should match both (and potentially others if string is common, but with unique emails it should be fine)
+    # But since we search for "filtering-test.com", it matches both our new users.
+    # To be safe, let's search for the unique UID part
+    items, total = await service.list_admins(search_query=uid)
     assert total == 2
     
     # Search username
-    items, total = await service.list_admins(search_query="alice_admin")
+    items, total = await service.list_admins(search_query=f"alice_{uid}")
     assert total == 1
-    assert items[0].username == "alice_admin"
+    assert items[0].username == f"alice_{uid}"
     
     # 4. Test Sorting (Filter to our subset first)
-    filters = {"email__like": "filtering-test"}
+    filters = {"email__like": uid}
     
-    # Descending (default created_at) - Bob, Alice
+    # Descending (default created_at) - Bob (created 2nd), Alice (created 1st)
+    # Actually created_at might be same second.
+    # Let's sort by username
     items, _ = await service.list_admins(filters=filters, sort_by="username", sort_order="desc")
-    assert items[0].username == "bob_admin"
+    assert items[0].username == f"bob_{uid}"
     
     # Ascending
     items, _ = await service.list_admins(filters=filters, sort_by="username", sort_order="asc")
-    assert items[0].username == "alice_admin"
+    assert items[0].username == f"alice_{uid}"

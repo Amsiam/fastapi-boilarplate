@@ -261,6 +261,10 @@ class UserManagementService:
             
         if admin_updates:
             await self.admin_repo.update(admin, admin_updates)
+            
+        # Invalidate Cache
+        from app.core.cache import delete_cache, user_profile_key
+        await delete_cache(user_profile_key(str(user.id)))
 
         # Audit
         new_values = {
@@ -297,6 +301,10 @@ class UserManagementService:
         success = await self.user_repo.soft_delete(admin.user_id)
         if not success:
              raise NotFoundError(message="User not found")
+             
+        # Invalidate Cache
+        from app.core.cache import delete_cache, user_profile_key
+        await delete_cache(user_profile_key(str(admin.user_id)))
              
         await audit_service.log_action(
             action="delete_admin",
@@ -474,6 +482,10 @@ class UserManagementService:
         
         if customer_updates:
             await self.customer_repo.update(customer, customer_updates)
+            
+        # Invalidate Cache
+        from app.core.cache import delete_cache, user_profile_key
+        await delete_cache(user_profile_key(str(user.id)))
 
         # Audit
         new_values = {
@@ -503,6 +515,10 @@ class UserManagementService:
         success = await self.user_repo.soft_delete(customer.user_id)
         if not success:
              raise NotFoundError(message="User not found")
+             
+        # Invalidate Cache
+        from app.core.cache import delete_cache, user_profile_key
+        await delete_cache(user_profile_key(str(customer.user_id)))
              
         await audit_service.log_action(
             action="delete_customer",

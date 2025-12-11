@@ -148,6 +148,11 @@ def user_permissions_key(user_id: str) -> str:
     return f"permissions:user:{user_id}"
 
 
+def user_profile_key(user_id: str) -> str:
+    """Generate cache key for user profile."""
+    return f"user:profile:{user_id}"
+
+
 def otp_key(email: str, otp_type: str) -> str:
     """Generate cache key for OTP."""
     return f"otp:{email}:{otp_type}"
