@@ -50,11 +50,16 @@ class UserManagementService:
         await self._check_email_exists(data.email)
 
         # 1. Resolve Role
-        role = await self.role_repo.get_by_name("ADMIN")
-        if not role:
-             # Seed it if missing (simplifies testing too)
-             role = Role(name="ADMIN", description="Administrator", is_system=True)
-             role = await self.role_repo.create(role)
+        if data.role_id:
+            role = await self.role_repo.get(data.role_id)
+            if not role:
+                 raise NotFoundError(message="Role not found")
+        else:
+            role = await self.role_repo.get_by_name("ADMIN")
+            if not role:
+                 # Seed it if missing (simplifies testing too)
+                 role = Role(name="ADMIN", description="Administrator", is_system=True)
+                 role = await self.role_repo.create(role)
 
         # 2. Create User
         user = User(

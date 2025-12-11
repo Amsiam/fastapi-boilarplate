@@ -186,9 +186,27 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     
     # Check cache first
     cache_key = user_permissions_key(str(user.id))
-    cached_permissions = await get_cache(cache_key)
-    if cached_permissions is not None:
-        return cached_permissions
+    cached_data = await get_cache(cache_key)
+    
+    # Verify version if cached
+    if cached_data:
+        # Backward compatibility or if stored as list
+        if isinstance(cached_data, list):
+            # No version check possible for old format, treat as valid or miss
+            # Let's treat as miss to force update
+            pass 
+        elif isinstance(cached_data, dict):
+            cached_role_id = cached_data.get("role_id")
+            cached_version = cached_data.get("role_version", 0)
+            cached_perms = cached_data.get("permissions", [])
+            
+            if cached_role_id:
+                # Check current version in Redis
+                current_version = await get_cache(f"role:version:{cached_role_id}")
+                current_version = int(current_version) if current_version else 0
+                
+                if cached_version == current_version:
+                    return cached_perms
     
     # Use repositories for database access
     admin_repo = AdminRepository(db)
@@ -204,6 +222,10 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     if not role:
         return []
     
+    # Get current role version
+    current_version = await get_cache(f"role:version:{role.id}")
+    current_version = int(current_version) if current_version else 0
+
     # SUPER_ADMIN has all permissions
     if role.name == "SUPER_ADMIN":
         # Fetch all permissions from database to be explicit (ACID/Consistency)
@@ -212,8 +234,13 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
         all_perms = await perm_repo.list_all()
         permissions = [p.code for p in all_perms]
         
-        # Cache for 5 minutes
-        await set_cache(cache_key, permissions, expire=300)
+        # Cache with version
+        to_cache = {
+            "role_id": str(role.id),
+            "role_version": current_version,
+            "permissions": permissions
+        }
+        await set_cache(cache_key, to_cache, expire=300)
         return permissions
     
     # Fetch role permissions using repository
@@ -231,8 +258,13 @@ async def get_user_permissions(user: User, db: AsyncSession) -> List[str]:
     # Remove duplicates
     final_permissions = list(set(permission_codes))
     
-    # Cache for 5 minutes
-    await set_cache(cache_key, final_permissions, expire=300)
+    # Cache with version
+    to_cache = {
+        "role_id": str(role.id),
+        "role_version": current_version,
+        "permissions": final_permissions
+    }
+    await set_cache(cache_key, to_cache, expire=300)
     
     return final_permissions
 

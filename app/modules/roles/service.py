@@ -26,6 +26,11 @@ class RoleService:
         self.db = db
         self.role_repo = RoleRepository(db)
     
+    async def _invalidate_role_cache(self, role_id: UUID) -> None:
+        """Increment role version to invalidate cached permissions for users."""
+        from app.core.cache import increment_cache
+        await increment_cache(f"role:version:{role_id}")
+
     async def create_role(
         self,
         name: str,
@@ -195,6 +200,9 @@ class RoleService:
             permission_ids=permission_ids
         )
         
+        # Invalidate cache
+        await self._invalidate_role_cache(role.id)
+        
         new_values = {}
         if name: new_values["name"] = name
         if description: new_values["description"] = description
@@ -229,6 +237,9 @@ class RoleService:
             )
         
         await self.role_repo.delete(str(role_id))
+        
+        # Invalidate cache
+        await self._invalidate_role_cache(role.id)
         
         await audit_service.log_action(
             action="delete_role",

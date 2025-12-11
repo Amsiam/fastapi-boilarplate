@@ -13,7 +13,7 @@ class AdminCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=100)
     username: str = Field(min_length=3, max_length=50)
-    # Could imply role via URL or just default to admin
+    role_id: Optional[UUID] = None
 
 class AdminUpdate(BaseModel):
     """Schema for updating an admin."""
