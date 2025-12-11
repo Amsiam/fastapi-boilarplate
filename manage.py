@@ -213,7 +213,7 @@ class {class_prefix}Repository(BaseRepository[{class_prefix}]):
         f.write(repo_content)
         
     # 5. service.py
-    service_content = f'''from typing import List, Optional
+    service_content = f'''from typing import List, Optional, Dict, Any
 from uuid import UUID
 from fastapi import HTTPException
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -229,8 +229,36 @@ class {class_prefix}Service:
         instance = {class_prefix}(**data.model_dump())
         return await self.repository.create(instance)
 
-    async def get_all(self) -> List[{class_prefix}]:
-        return await self.repository.get_multi()
+    async def get_list(
+        self,
+        page: int = 1,
+        per_page: int = 20,
+        filters: Optional[Dict[str, Any]] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        search_query: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Get paginated list with filtering and sorting.
+        """
+        skip = (page - 1) * per_page
+        items, total = await self.repository.get_list(
+            filters=filters,
+            sort_by=sort_by,
+            sort_order=sort_order,
+            search_query=search_query,
+            search_fields=["name", "description"],
+            skip=skip,
+            limit=per_page
+        )
+        
+        return {{
+            "items": items,
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "total_pages": (total + per_page - 1) // per_page if per_page > 0 else 0
+        }}
 
     async def get_by_id(self, id: UUID) -> {class_prefix}:
         instance = await self.repository.get(id)
@@ -250,9 +278,9 @@ class {class_prefix}Service:
         f.write(service_content)
 
     # 6. endpoints.py
-    endpoints_content = f'''from typing import List, Dict, Any
+    endpoints_content = f'''from typing import List, Dict, Any, Optional
 from uuid import UUID
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, status, Query, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.schemas.response import SuccessResponse, PaginatedResponse
@@ -291,19 +319,36 @@ async def create_{module_name}(
     )
 )
 async def list_{module_name}s(
+    request: Request,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
+    q: Optional[str] = Query(None, description="Search query"),
+    sort: str = Query("created_at", description="Sort field"),
+    order: str = Query("desc", description="Sort order (asc/desc)"),
     session: AsyncSession = Depends(get_db)
 ):
+    """
+    List {display_name}s with filtering, sorting, and search.
+    """
+    # Construct filters from query params
+    filters = {{}}
+    for key, value in request.query_params.items():
+        if key not in ["page", "per_page", "q", "sort", "order"]:
+            filters[key] = value
+
     service = {class_prefix}Service(session)
-    result = await service.get_all()
-    # TODO: Implement actual pagination in service
+    result = await service.get_list(
+        page=page,
+        per_page=per_page,
+        filters=filters,
+        sort_by=sort,
+        sort_order=order,
+        search_query=q
+    )
+    
     return SuccessResponse(
         message="{display_name}s retrieved successfully", 
-        data={{
-            "items": result,
-            "total": len(result),
-            "page": 1,
-            "per_page": 100
-        }}
+        data=result
     )
 
 @router.get(
@@ -380,20 +425,43 @@ async def delete_{module_name}(
         
         test_content = f'''import pytest
 from httpx import AsyncClient
+from app.modules.{module_name}.models import {class_prefix}
 
 @pytest.mark.asyncio
 async def test_create_{module_name}(client: AsyncClient):
-    # TODO: Update payload with valid data
     payload = {{"name": "Test {display_name}"}} 
     response = await client.post("/api/v1/{module_name}/", json=payload)
-    # assert response.status_code == 201
-    # assert response.json()["success"] is True
+    if response.status_code != 201:
+        print(response.json())
+    assert response.status_code == 201
+    assert response.json()["success"] is True
+    assert response.json()["data"]["name"] == "Test {display_name}"
 
 @pytest.mark.asyncio
-async def test_get_{module_name}s(client: AsyncClient):
-    response = await client.get("/api/v1/{module_name}/")
+async def test_list_{module_name}s_filtering(client: AsyncClient):
+    # Create two items
+    await client.post("/api/v1/{module_name}/", json={{"name": "Alpha"}})
+    await client.post("/api/v1/{module_name}/", json={{"name": "Beta"}})
+    
+    # Test Search
+    response = await client.get("/api/v1/{module_name}/?q=Alpha")
     assert response.status_code == 200
-    assert response.json()["success"] is True
+    data = response.json()["data"]
+    assert len(data["items"]) == 1
+    assert data["items"][0]["name"] == "Alpha"
+
+    # Test Sorting
+    response = await client.get("/api/v1/{module_name}/?sort=name&order=desc")
+    assert response.status_code == 200
+    data = response.json()["data"]
+    names = [item["name"] for item in data["items"]]
+    # Ensure Beta comes before Alpha (Desc: Beta > Alpha)
+    try:
+        beta_idx = names.index("Beta")
+        alpha_idx = names.index("Alpha")
+        assert beta_idx < alpha_idx
+    except ValueError:
+        pytest.fail("Alpha or Beta not found in response")
 '''
         with open(test_file_path, "w") as f:
             f.write(test_content)

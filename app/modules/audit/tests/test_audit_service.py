@@ -122,7 +122,7 @@ async def test_audit_list_logs(role_service, actor_id):
     await role_service.create_role(name="LOG_ROLE_2", actor_id=actor_id)
     
     # List Logs
-    logs, total = await audit_service.list_logs(actor_id=str(actor_id))
+    logs, total = await audit_service.list_logs(filters={"actor_id": str(actor_id)})
     
     assert total >= 2
     assert len(logs) >= 2
