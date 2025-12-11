@@ -28,12 +28,12 @@ router = APIRouter(tags=["Authentication"])
 
 @router.post(
     "/register",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     status_code=status.HTTP_201_CREATED,
     summary="Register Customer",
     responses=doc_responses(
-        success_example=None,
         success_message="User registered successfully. Please verify your email.",
+        success_status_code=status.HTTP_201_CREATED,
         errors=(409, 422)
     )
 )
@@ -77,14 +77,9 @@ async def register(
 
 @router.post(
     "/login",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[TokenResponse],
     summary="Login",
     responses=doc_responses(
-        success_example={
-            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "refresh_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "token_type": "bearer"
-        },
         success_message="Login successful",
         errors=(401, 403, 422)
     )
@@ -145,10 +140,9 @@ async def login(
 
 @router.post(
     "/verify-email",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Verify Email",
     responses=doc_responses(
-        success_example=None,
         success_message="Email verified successfully. You can now login.",
         errors=(400, 422)
     )
@@ -198,10 +192,9 @@ async def verify_email(
 
 @router.post(
     "/resend-otp",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Resend OTP",
     responses=doc_responses(
-        success_example=None,
         success_message="OTP sent successfully",
         errors=(400, 422, 429)
     )
@@ -249,13 +242,9 @@ async def resend_otp(
 
 @router.post(
     "/refresh",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[TokenResponse],
     summary="Refresh Access Token",
     responses=doc_responses(
-        success_example={
-            "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-            "token_type": "bearer"
-        },
         success_message="Token refreshed successfully",
         errors=(401, 422)
     )
@@ -315,10 +304,9 @@ async def refresh_token(
 
 @router.post(
     "/logout",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Logout",
     responses=doc_responses(
-        success_example=None,
         success_message="Logged out successfully",
         errors=(401,)
     )
@@ -368,17 +356,9 @@ async def logout(
 
 @router.get(
     "/me",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[UserResponse],
     summary="Get Current User",
     responses=doc_responses(
-        success_example={
-            "id": "550e8400-e29b-41d4-a716-446655440000",
-            "email": "user@example.com",
-            "is_active": True,
-            "is_verified": True,
-            "role": "CUSTOMER",
-            "created_at": "2024-01-01T00:00:00"
-        },
         success_message="User retrieved successfully",
         errors=(401,)
     )
@@ -423,10 +403,9 @@ async def get_current_user_info(
 
 @router.post(
     "/change-password",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Change Password",
     responses=doc_responses(
-        success_example=None,
         success_message="Password changed successfully",
         errors=(400, 401)
     )

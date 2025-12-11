@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
-from app.modules.roles.schemas import RoleCreateRequest, RoleUpdateRequest
+from app.modules.roles.schemas import RoleCreateRequest, RoleUpdateRequest, RoleResponse
 from app.core.schemas.response import SuccessResponse
 from app.modules.roles.service import RoleService
 from app.constants import PermissionEnum
@@ -18,12 +18,12 @@ router = APIRouter(tags=["Role Management"])
 
 @router.post(
     "",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[RoleResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create Role",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "name": "CUSTOM_ROLE"},
         success_message="Role created successfully",
+        success_status_code=status.HTTP_201_CREATED,
         errors=(400, 401, 403, 409, 422)
     )
 )

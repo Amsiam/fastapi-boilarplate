@@ -12,7 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
-from app.modules.roles.schemas import PermissionCreateRequest
+from app.modules.roles.schemas import PermissionCreateRequest, PermissionResponse
 from app.core.schemas.response import SuccessResponse
 from app.modules.roles.service import PermissionService
 from app.constants import PermissionEnum
@@ -22,10 +22,9 @@ router = APIRouter(tags=["Permission Management"])
 
 @router.get(
     "",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[list[PermissionResponse]],
     summary="List Permissions",
     responses=doc_responses(
-        success_example=[{"id": "550e8400-e29b-41d4-a716-446655440000", "code": "users:read", "description": "View users"}],
         success_message="Permissions retrieved successfully",
         errors=(401, 403)
     )

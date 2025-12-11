@@ -1,7 +1,7 @@
 """
 Customer Management Endpoints.
 """
-from typing import List
+from typing import List, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Query, status
 
@@ -26,12 +26,12 @@ def check_super_admin(user: User):
 
 @router.post(
     "/",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[CustomerDetailResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create Customer",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
         success_message="Customer created successfully",
+        success_status_code=status.HTTP_201_CREATED,
         errors=(401, 403, 409, 422)
     )
 )
@@ -49,10 +49,9 @@ async def create_customer(
 
 @router.get(
     "/",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[Dict[str, Any]],
     summary="List Customers",
     responses=doc_responses(
-        success_example={"items": [{"id": "...", "email": "customer@example.com"}], "total": 1, "page": 1},
         success_message="Customers retrieved successfully",
         errors=(401, 403)
     )
@@ -82,10 +81,9 @@ async def list_customers(
 
 @router.get(
     "/{customer_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[CustomerDetailResponse],
     summary="Get Customer",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
         success_message="Customer retrieved successfully",
         errors=(401, 403, 404)
     )
@@ -103,10 +101,9 @@ async def get_customer(
 
 @router.put(
     "/{customer_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[CustomerDetailResponse],
     summary="Update Customer",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "customer@example.com"},
         success_message="Customer updated successfully",
         errors=(401, 403, 404, 422)
     )
@@ -126,10 +123,9 @@ async def update_customer(
 
 @router.delete(
     "/{customer_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Delete Customer",
     responses=doc_responses(
-        success_example=None,
         success_message="Customer deleted successfully",
         errors=(401, 403, 404)
     )

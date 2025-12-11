@@ -1,7 +1,7 @@
 """
 Audit Log Viewer Endpoints.
 """
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, Depends, Query, status
 from app.core.permissions import get_current_active_user
 from app.core.docs import doc_responses
@@ -16,15 +16,9 @@ router = APIRouter(tags=["Audit Logs"])
 
 @router.get(
     "/",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[Dict[str, Any]],
     summary="List Audit Logs",
     responses=doc_responses(
-        success_example={
-            "items": [{"action": "create_role", "actor_id": "...", "timestamp": "2024-01-01T00:00:00"}],
-            "total": 100,
-            "page": 1,
-            "per_page": 20
-        },
         success_message="Audit logs retrieved successfully",
         errors=(401, 403)
     )

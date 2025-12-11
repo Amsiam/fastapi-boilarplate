@@ -77,14 +77,6 @@ class SuccessResponse(BaseModel, Generic[T]):
     message: str = Field(..., description="Success message")
     data: Optional[T] = Field(None, description="Response data")
     
-    class Config:
-        json_schema_extra = {
-            "example": {
-                "success": True,
-                "message": "Operation completed successfully",
-                "data": None
-            }
-        }
 
 
 class PaginatedResponse(BaseModel, Generic[T]):

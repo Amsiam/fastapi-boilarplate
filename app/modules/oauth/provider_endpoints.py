@@ -5,6 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status, Request
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from typing import Dict, Any, List
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
@@ -12,7 +13,9 @@ from app.core.schemas.response import SuccessResponse
 from app.modules.oauth.schemas import (
     OAuthProviderCreateRequest,
     OAuthProviderUpdateRequest,
-    OAuthProviderStatusRequest
+    OAuthProviderStatusRequest,
+    OAuthProviderResponse,
+    OAuthProviderDetailResponse
 )
 from app.constants import PermissionEnum
 from app.modules.oauth.provider_service import OAuthProviderService
@@ -22,12 +25,12 @@ router = APIRouter(tags=["OAuth Provider Management"])
 
 @router.post(
     "",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[OAuthProviderResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create OAuth Provider",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "name": "google"},
         success_message="OAuth provider created successfully",
+        success_status_code=status.HTTP_201_CREATED,
         errors=(401, 403, 409, 422)
     )
 )
@@ -67,10 +70,9 @@ async def create_oauth_provider(
 
 @router.get(
     "",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[Dict[str, Any]],
     summary="List OAuth Providers",
     responses=doc_responses(
-        success_example={"items": [{"id": "...", "name": "google"}], "total": 1, "page": 1},
         success_message="OAuth providers retrieved successfully",
         errors=(401, 403)
     )
@@ -102,10 +104,9 @@ async def list_oauth_providers(
 
 @router.get(
     "/{provider_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[OAuthProviderDetailResponse],
     summary="Get OAuth Provider Details",
     responses=doc_responses(
-        success_example={"id": "...", "name": "google", "client_id": "...", "scopes": ["email", "profile"]},
         success_message="OAuth provider retrieved successfully",
         errors=(401, 403, 404)
     )
@@ -132,10 +133,9 @@ async def get_oauth_provider(
 
 @router.put(
     "/{provider_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Update OAuth Provider",
     responses=doc_responses(
-        success_example=None,
         success_message="OAuth provider updated successfully",
         errors=(401, 403, 404, 422)
     )
@@ -169,10 +169,9 @@ async def update_oauth_provider(
 
 @router.patch(
     "/{provider_id}/status",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[Dict[str, Any]],
     summary="Activate/Deactivate OAuth Provider",
     responses=doc_responses(
-        success_example={"is_active": True},
         success_message="OAuth provider status updated successfully",
         errors=(401, 403, 404)
     )
@@ -209,10 +208,9 @@ async def update_oauth_provider_status(
 
 @router.delete(
     "/{provider_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Delete OAuth Provider",
     responses=doc_responses(
-        success_example=None,
         success_message="OAuth provider deleted successfully",
         errors=(401, 403, 404)
     )

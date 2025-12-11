@@ -1,7 +1,7 @@
 """
 Admin Management Endpoints.
 """
-from typing import List
+from typing import List, Dict, Any
 from uuid import UUID
 from fastapi import APIRouter, Depends, Request, Query, status
 
@@ -26,12 +26,12 @@ def check_super_admin(user: User):
 
 @router.post(
     "/",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[AdminDetailResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Create Admin",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "admin@example.com"},
         success_message="Admin created successfully",
+        success_status_code=status.HTTP_201_CREATED,
         errors=(401, 403, 409, 422)
     )
 )
@@ -49,10 +49,9 @@ async def create_admin(
 
 @router.get(
     "/",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[Dict[str, Any]],
     summary="List Admins",
     responses=doc_responses(
-        success_example={"items": [{"id": "...", "email": "admin@example.com"}], "total": 1, "page": 1},
         success_message="Admins retrieved successfully",
         errors=(401, 403)
     )
@@ -82,10 +81,9 @@ async def list_admins(
 
 @router.get(
     "/{admin_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[AdminDetailResponse],
     summary="Get Admin",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "admin@example.com"},
         success_message="Admin retrieved successfully",
         errors=(401, 403, 404)
     )
@@ -103,10 +101,9 @@ async def get_admin(
 
 @router.put(
     "/{admin_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[AdminDetailResponse],
     summary="Update Admin",
     responses=doc_responses(
-        success_example={"id": "550e8400-e29b-41d4-a716-446655440000", "email": "admin@example.com"},
         success_message="Admin updated successfully",
         errors=(401, 403, 404, 422)
     )
@@ -126,10 +123,9 @@ async def update_admin(
 
 @router.delete(
     "/{admin_id}",
-    response_model=SuccessResponse,
+    response_model=SuccessResponse[None],
     summary="Delete Admin",
     responses=doc_responses(
-        success_example=None,
         success_message="Admin deleted successfully",
         errors=(401, 403, 404)
     )

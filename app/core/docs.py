@@ -171,9 +171,12 @@ def create_error_responses(*status_codes: int) -> Dict[int | str, Dict[str, Any]
     return responses
 
 
+from pydantic import BaseModel
+
 def doc_responses(
     success_example: Optional[Any] = None,
     success_message: str = "Operation completed successfully",
+    success_status_code: int = status.HTTP_200_OK,
     errors: tuple = (400, 401, 403, 404, 422, 500)
 ) -> Dict[int | str, Dict[str, Any]]:
     """
@@ -184,10 +187,17 @@ def doc_responses(
             success_example={"id": "123", "name": "John"},
             errors=(401, 403, 404)
         ))
+        
+        # Or with a Pydantic model (uses Config.json_schema_extra['example'])
+        @app.get("/users", responses=doc_responses(
+            success_example=UserResponse,
+            success_status_code=200
+        ))
     
     Args:
-        success_example: Example data for successful response
+        success_example: Example data dict OR Pydantic model class
         success_message: Success message
+        success_status_code: Success HTTP status code (default: 200)
         errors: Tuple of error status codes to document
         
     Returns:
@@ -195,18 +205,24 @@ def doc_responses(
     """
     responses = create_error_responses(*errors)
     
-    # Add success response
-    responses[200] = {
-        "description": "Successful Response",
-        "content": {
-            "application/json": {
-                "example": {
-                    "success": True,
-                    "message": success_message,
-                    "data": success_example
+
+    # 2. Add specific success example if provided as a dictionary
+    #    If success_example is a dict, we use it to override the default example.
+    #    If it is a class or None, we let FastAPI's response_model handle the 
+    #    schema and example generation automatically.
+    if isinstance(success_example, dict):
+        responses[success_status_code] = {
+            "description": "Successful Response",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": success_message,
+                        "data": success_example
+                    }
                 }
             }
         }
-    }
     
     return responses
+
