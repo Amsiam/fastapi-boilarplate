@@ -133,6 +133,246 @@ def docker_cmd(
     subprocess.run(cmd)
 
 
+
+@app.command("make:module")
+def make_module(
+    name: str = typer.Argument(..., help="Name of the module (e.g., 'products')"),
+    with_test: bool = typer.Option(False, "--with-test", "-t", help="Generate a test file for the module"),
+):
+    """Create a new module with standard structure."""
+    module_name = name.lower()
+    base_dir = os.path.join("app", "modules", module_name)
+    
+    if os.path.exists(base_dir):
+        console.print(f"[red]Module already exists: {base_dir}[/red]")
+        raise typer.Exit(1)
+        
+    os.makedirs(base_dir)
+    console.print(f"[green]Created directory: {base_dir}[/green]")
+    
+    # Define class names
+    class_prefix = "".join(word.capitalize() for word in module_name.split("_"))
+    display_name = name.replace("_", " ").title()
+    
+    # 1. __init__.py
+    with open(os.path.join(base_dir, "__init__.py"), "w") as f:
+        f.write("")
+        
+    # 2. models.py
+    models_content = f'''from typing import Optional
+from sqlmodel import Field
+from datetime import datetime
+from app.core.base_model import BaseUUIDModel
+
+class {class_prefix}(BaseUUIDModel, table=True):
+    """{class_prefix} model."""
+    name: str
+    description: Optional[str] = None
+    # Add your fields here
+'''
+    with open(os.path.join(base_dir, "models.py"), "w") as f:
+        f.write(models_content)
+        
+    # 3. schemas.py
+    schemas_content = f'''from typing import Optional
+from pydantic import BaseModel, ConfigDict
+from uuid import UUID
+from datetime import datetime
+
+class {class_prefix}Base(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+class {class_prefix}Create({class_prefix}Base):
+    pass
+
+class {class_prefix}Update({class_prefix}Base):
+    name: Optional[str] = None
+
+class {class_prefix}Response({class_prefix}Base):
+    id: UUID
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+'''
+    with open(os.path.join(base_dir, "schemas.py"), "w") as f:
+        f.write(schemas_content)
+        
+    # 4. repository.py
+    repo_content = f'''from app.modules.{module_name}.models import {class_prefix}
+from app.core.base_repository import BaseRepository
+from sqlmodel.ext.asyncio.session import AsyncSession
+
+class {class_prefix}Repository(BaseRepository[{class_prefix}]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(model={class_prefix}, db=session)
+'''
+    with open(os.path.join(base_dir, "repository.py"), "w") as f:
+        f.write(repo_content)
+        
+    # 5. service.py
+    service_content = f'''from typing import List, Optional
+from uuid import UUID
+from fastapi import HTTPException
+from sqlmodel.ext.asyncio.session import AsyncSession
+from app.modules.{module_name}.repository import {class_prefix}Repository
+from app.modules.{module_name}.models import {class_prefix}
+from app.modules.{module_name}.schemas import {class_prefix}Create, {class_prefix}Update
+
+class {class_prefix}Service:
+    def __init__(self, session: AsyncSession):
+        self.repository = {class_prefix}Repository(session)
+
+    async def create(self, data: {class_prefix}Create) -> {class_prefix}:
+        instance = {class_prefix}(**data.model_dump())
+        return await self.repository.create(instance)
+
+    async def get_all(self) -> List[{class_prefix}]:
+        return await self.repository.get_multi()
+
+    async def get_by_id(self, id: UUID) -> {class_prefix}:
+        instance = await self.repository.get(id)
+        if not instance:
+            raise HTTPException(status_code=404, detail="{class_prefix} not found")
+        return instance
+
+    async def update(self, id: UUID, data: {class_prefix}Update) -> {class_prefix}:
+        instance = await self.get_by_id(id)
+        update_data = data.model_dump(exclude_unset=True)
+        return await self.repository.update(instance, update_data)
+
+    async def delete(self, id: UUID) -> None:
+        await self.repository.delete(id)
+'''
+    with open(os.path.join(base_dir, "service.py"), "w") as f:
+        f.write(service_content)
+
+    # 6. endpoints.py
+    endpoints_content = f'''from typing import List
+from uuid import UUID
+from fastapi import APIRouter, Depends, status
+from sqlmodel.ext.asyncio.session import AsyncSession
+from app.core.database import get_db
+from app.core.schemas.response import SuccessResponse
+from app.modules.{module_name}.service import {class_prefix}Service
+from app.modules.{module_name}.schemas import {class_prefix}Response, {class_prefix}Create, {class_prefix}Update
+
+router = APIRouter()
+
+@router.post("/", response_model=SuccessResponse[{class_prefix}Response], status_code=status.HTTP_201_CREATED)
+async def create_{module_name}(
+    data: {class_prefix}Create,
+    session: AsyncSession = Depends(get_db)
+):
+    service = {class_prefix}Service(session)
+    result = await service.create(data)
+    return SuccessResponse(message="{display_name} created successfully", data=result)
+
+@router.get("/", response_model=SuccessResponse[List[{class_prefix}Response]])
+async def list_{module_name}s(
+    session: AsyncSession = Depends(get_db)
+):
+    service = {class_prefix}Service(session)
+    result = await service.get_all()
+    return SuccessResponse(message="{display_name}s retrieved successfully", data=result)
+
+@router.get("/{{id}}", response_model=SuccessResponse[{class_prefix}Response])
+async def get_{module_name}(
+    id: UUID,
+    session: AsyncSession = Depends(get_db)
+):
+    service = {class_prefix}Service(session)
+    result = await service.get_by_id(id)
+    return SuccessResponse(message="{display_name} retrieved successfully", data=result)
+
+@router.put("/{{id}}", response_model=SuccessResponse[{class_prefix}Response])
+async def update_{module_name}(
+    id: UUID,
+    data: {class_prefix}Update,
+    session: AsyncSession = Depends(get_db)
+):
+    service = {class_prefix}Service(session)
+    result = await service.update(id, data)
+    return SuccessResponse(message="{display_name} updated successfully", data=result)
+
+@router.delete("/{{id}}", status_code=status.HTTP_200_OK, response_model=SuccessResponse)
+async def delete_{module_name}(
+    id: UUID,
+    session: AsyncSession = Depends(get_db)
+):
+    service = {class_prefix}Service(session)
+    await service.delete(id)
+    return SuccessResponse(message="{display_name} deleted successfully", data=None)
+'''
+    with open(os.path.join(base_dir, "endpoints.py"), "w") as f:
+        f.write(endpoints_content)
+
+    console.print(f"[green]Successfully created module '{module_name}' structure in {base_dir}[/green]")
+
+    # 7. Create tests if requested
+    if with_test:
+        test_dir = os.path.join("tests", "modules")
+        os.makedirs(test_dir, exist_ok=True)
+        test_file_path = os.path.join(test_dir, f"test_{module_name}.py")
+        
+        test_content = f'''import pytest
+from httpx import AsyncClient
+
+@pytest.mark.asyncio
+async def test_create_{module_name}(client: AsyncClient):
+    # TODO: Update payload with valid data
+    payload = {{"name": "Test {display_name}"}} 
+    response = await client.post("/api/v1/{module_name}/", json=payload)
+    # assert response.status_code == 201
+    # assert response.json()["success"] is True
+
+@pytest.mark.asyncio
+async def test_get_{module_name}s(client: AsyncClient):
+    response = await client.get("/api/v1/{module_name}/")
+    assert response.status_code == 200
+    assert response.json()["success"] is True
+'''
+        with open(test_file_path, "w") as f:
+            f.write(test_content)
+        console.print(f"[green]Created test file: {test_file_path}[/green]")
+
+    # 8. Register in router.py
+    router_file = os.path.join("app", "api", "v1", "router.py")
+    if os.path.exists(router_file):
+        try:
+            with open(router_file, "r") as f:
+                content = f.read()
+            
+            # Prepare lines to add
+            import_line = f"from app.modules.{module_name} import endpoints as {module_name}"
+            include_line = f'api_router.include_router({module_name}.router, prefix="/{module_name}", tags=["{display_name}"])'
+            
+            if import_line not in content:
+                lines = content.splitlines()
+                last_import_idx = 0
+                for i, line in enumerate(lines):
+                    if line.startswith("from ") or line.startswith("import "):
+                        last_import_idx = i
+                
+                # Insert import after last import
+                lines.insert(last_import_idx + 1, import_line)
+                
+                # Append include_router at the end
+                lines.append(include_line)
+                
+                new_content = "\n".join(lines) + "\n"
+                
+                with open(router_file, "w") as f:
+                    f.write(new_content)
+                    
+                console.print(f"[green]Registered module in router: {router_file}[/green]")
+            else:
+                console.print(f"[yellow]Module seems already registered in router.[/yellow]")
+        except Exception as e:
+            console.print(f"[red]Failed to register in router: {str(e)}[/red]")
+
+
 # ==================== SEEDER COMMANDS ====================
 
 @app.command("make:seeder")

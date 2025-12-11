@@ -1,10 +1,12 @@
 """
 Standardized response schemas for API responses.
 """
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Generic, TypeVar
 from pydantic import BaseModel, Field
 
 from app.constants.error_codes import ErrorCode
+
+T = TypeVar("T")
 
 
 class ErrorDetail(BaseModel):
@@ -69,11 +71,11 @@ class ValidationErrorResponse(BaseModel):
         }
 
 
-class SuccessResponse(BaseModel):
+class SuccessResponse(BaseModel, Generic[T]):
     """Generic success response."""
     success: bool = Field(True, description="Always true for success")
     message: str = Field(..., description="Success message")
-    data: Optional[Any] = Field(None, description="Response data")
+    data: Optional[T] = Field(None, description="Response data")
     
     class Config:
         json_schema_extra = {
@@ -85,10 +87,10 @@ class SuccessResponse(BaseModel):
         }
 
 
-class PaginatedResponse(BaseModel):
+class PaginatedResponse(BaseModel, Generic[T]):
     """Paginated response wrapper."""
     success: bool = Field(True, description="Always true for success")
-    data: List[Any] = Field(..., description="List of items")
+    data: List[T] = Field(..., description="List of items")
     pagination: Dict[str, int] = Field(
         ...,
         description="Pagination metadata"
