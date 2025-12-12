@@ -387,7 +387,8 @@ async def get_current_user_info(
         user_data.permissions = permissions
         
         # Get role name
-        from app.repositories import AdminRepository, RoleRepository
+        from app.modules.users.repository import AdminRepository
+        from app.modules.roles.repository import RoleRepository
         admin_repo = AdminRepository(db)
         role_repo = RoleRepository(db)
         

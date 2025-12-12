@@ -21,7 +21,10 @@ class Role(SQLModel, table=True):
 
     # Relationships
     admins: list["Admin"] = Relationship(back_populates="role")
-    role_permissions: list["RolePermission"] = Relationship(back_populates="role")
+    role_permissions: list["RolePermission"] = Relationship(
+        back_populates="role",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"}
+    )
 
 
 class Permission(SQLModel, table=True):

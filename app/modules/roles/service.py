@@ -112,8 +112,11 @@ class RoleService:
             item = RoleListItemResponse(
                 id=role.id,
                 name=role.name,
+                description=role.description,
                 is_system=role.is_system,
-                permissions_count=count
+                permissions_count=count,
+                created_at=role.created_at,
+                updated_at=role.updated_at
             )
             items.append(item)
             

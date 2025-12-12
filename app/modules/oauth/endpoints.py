@@ -11,14 +11,14 @@ from app.core.docs import doc_responses
 from app.core.schemas.response import SuccessResponse
 from app.modules.auth.schemas import OAuthCallbackRequest, Token
 from app.modules.oauth.service import OAuthService
-from app.modules.oauth.schemas import OAuthProviderResponse
+from app.modules.oauth.schemas import OAuthProviderResponse, OAuthProviderPublicResponse
 
 router = APIRouter(tags=["OAuth"])
 
 
 @router.get(
     "/providers",
-    response_model=SuccessResponse[List[OAuthProviderResponse]],
+    response_model=SuccessResponse[List[OAuthProviderPublicResponse]],
     summary="List OAuth Providers",
     responses=doc_responses(
         success_message="Providers retrieved successfully",

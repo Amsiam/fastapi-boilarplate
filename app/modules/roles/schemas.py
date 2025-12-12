@@ -19,6 +19,7 @@ class RoleCreateRequest(BaseModel):
 
 class RoleUpdateRequest(BaseModel):
     """Update role request."""
+    name: Optional[str] = Field(None, max_length=100)
     description: Optional[str] = Field(None, max_length=500)
     permission_ids: Optional[list[UUID]] = None
 
@@ -88,8 +89,11 @@ class RoleListItemResponse(BaseModel):
     """Role list item response."""
     id: UUID
     name: str
+    description: Optional[str]
     is_system: bool
     permissions_count: int
+    created_at: datetime
+    updated_at: datetime
     
     class Config:
         from_attributes = True

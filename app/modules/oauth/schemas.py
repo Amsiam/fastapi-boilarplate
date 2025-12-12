@@ -56,6 +56,17 @@ class OAuthProviderResponse(BaseModel):
     class Config:
         from_attributes = True
 
+    class Config:
+        from_attributes = True
+
+
+class OAuthProviderPublicResponse(BaseModel):
+    """Public OAuth provider response."""
+    name: str
+    display_name: str
+    icon: Optional[str]
+    login_url: str
+
 
 class OAuthProviderDetailResponse(BaseModel):
     """Detailed OAuth provider response."""

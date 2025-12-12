@@ -8,7 +8,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from app.core.database import get_db
 from app.core.docs import doc_responses
 from app.core.permissions import require_permissions
-from app.modules.roles.schemas import RoleCreateRequest, RoleUpdateRequest, RoleResponse
+from app.modules.roles.schemas import RoleCreateRequest, RoleUpdateRequest, RoleResponse, RoleListItemResponse
 from app.core.schemas.response import SuccessResponse, PaginatedResponse
 from app.modules.roles.service import RoleService
 from app.constants import PermissionEnum
@@ -58,7 +58,7 @@ async def create_role(
 
 @router.get(
     "",
-    response_model=PaginatedResponse[RoleResponse],
+    response_model=PaginatedResponse[RoleListItemResponse],
     summary="List Roles",
     responses=doc_responses(
         success_message="Roles retrieved successfully",
