@@ -271,6 +271,25 @@ Advanced filtering is supported using double underscores `__`:
 # Run all tests in Docker
 ./manage.py test
 
+### ⚡ Fast Setup with UV
+
+This project uses [uv](https://github.com/astral-sh/uv) for lightning-fast dependency management.
+
+1.  **Install uv** (if not installed):
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+2.  **Install Dependencies**:
+    ```bash
+    uv sync
+    ```
+
+3.  **Run Development Server**:
+    ```bash
+    uv run uvicorn app.main:app --reload
+    ```
+
 # Run tests locally (requires environment setup)
 source venv/bin/activate
 ./manage.py test

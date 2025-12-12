@@ -81,7 +81,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     is_active: bool
     is_verified: bool
-    role: str
+    user_type: str
     role_name: Optional[str] = None
     permissions: Optional[list[str]] = None
     created_at: datetime

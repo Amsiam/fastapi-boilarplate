@@ -99,6 +99,32 @@ The project is organized by **Modules** (Domain-Driven Design).
          filters["price__gte"] = min_price
      ```
 
+### 🛠️ Development Setup
+
+1. **Install `uv`**:
+
+    ```bash
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+    ```
+
+2. **Install Dependencies**:
+
+    ```bash
+    uv sync
+    ```
+
+3. **Run Tests**:
+
+    ```bash
+    uv run pytest
+    ```
+
+4. **Run Linter**:
+
+    ```bash
+    uv run ruff check .
+    ```
+
 ### 4. Database Migrations
 
 We use **Alembic** for database migrations.
