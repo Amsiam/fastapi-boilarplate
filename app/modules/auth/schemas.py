@@ -62,6 +62,11 @@ class OAuthCallbackRequest(BaseModel):
     redirect_uri: str
 
 
+class RefreshTokenRequest(BaseModel):
+    """Refresh token request."""
+    refresh_token: str
+
+
 # ============= Response Schemas =============
 
 class Token(BaseModel):

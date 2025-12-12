@@ -73,10 +73,8 @@ async def test_auth_integration(client: AsyncClient, session):
     assert user_data["user_type"] == "ADMIN"
     
     # 4. Refresh Token
-    # Endpoint expects refresh_token in COOKIE (HttpOnly).
-    # Since we might be on http in tests, secure cookies might not be auto-sent.
-    # explicit set cookies.
-    res = await client.post("/api/v1/auth/refresh", cookies={"refresh_token": refresh_token})
+    # Endpoint expects refresh_token in POST Body (JSON).
+    res = await client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
     
     assert res.status_code == 200, f"Refresh failed: {res.text}"
     new_token_data = res.json()["data"]

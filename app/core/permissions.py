@@ -28,7 +28,6 @@ http_bearer = HTTPBearer(auto_error=False)
 async def get_current_user(
     token: Optional[str] = Depends(oauth2_scheme),
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(http_bearer),
-    authorization: Optional[str] = Header(None),
     db: AsyncSession = Depends(get_db)
 ) -> User:
     """
@@ -58,12 +57,14 @@ async def get_current_user(
     # Try to extract token from multiple sources
     access_token = None
     
+    # Strict Header Support Only
+    # OAuth2PasswordBearer checks 'Authorization: Bearer <token>'
     if token:
         access_token = token
     elif credentials:
         access_token = credentials.credentials
-    elif authorization and authorization.startswith("Bearer "):
-        access_token = authorization.replace("Bearer ", "")
+    # removed manual Authorization header check which allowed non-strict parsing or potential confusion
+    # The Depends(oauth2_scheme) and Depends(http_bearer) are the standard ways ensuring header usage.
     
     if not access_token:
         raise AuthenticationError(

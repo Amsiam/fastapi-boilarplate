@@ -162,11 +162,11 @@ class TestTokens:
 class TestRefreshToken:
     """Test refresh token functionality."""
     
-    async def test_refresh_without_cookie(self, client):
-        """Test refresh endpoint without cookie."""
+    async def test_refresh_missing_body(self, client):
+        """Test refresh endpoint without body."""
         response = await client.post("/api/v1/auth/refresh")
         
-        assert response.status_code == 401
+        assert response.status_code == 422
 
 
 

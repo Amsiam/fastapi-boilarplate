@@ -17,7 +17,8 @@ from app.modules.auth.schemas import (
     ResetPasswordRequest,
     ChangePasswordRequest,
     TokenResponse,
-    UserResponse
+    UserResponse,
+    RefreshTokenRequest
 )
 from app.core.schemas.response import SuccessResponse
 from app.modules.auth.service import AuthService
@@ -255,51 +256,28 @@ async def resend_otp(
     )
 )
 async def refresh_token(
-    response: Response,
-    request: Request,
+    request: RefreshTokenRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Refresh access token using refresh token from cookie.
+    Refresh access token using refresh token from Post Body.
     
-    - Reads refresh token from HttpOnly cookie
     - Validates refresh token
     - Implements token rotation (old token invalidated)
     - Detects token reuse and revokes entire token family
-    - Returns new access token and sets new refresh token cookie
-    
-    **Note:** Refresh token is automatically read from HttpOnly cookie.
+    - Returns new access token and new refresh token
     """
-    from fastapi import Request
-    
-    # Get refresh token from cookie
-    refresh_token = request.cookies.get("refresh_token")
-    
-    if not refresh_token:
-        raise AuthenticationError(
-            error_code=ErrorCode.INVALID_REFRESH_TOKEN,
-            message="Refresh token not provided"
-        )
     
     auth_service = AuthService(db)
     
     # Refresh tokens
-    new_access_token, new_refresh_token = await auth_service.refresh_access_token(refresh_token)
-    
-    # Set new refresh token in cookie
-    response.set_cookie(
-        key="refresh_token",
-        value=new_refresh_token,
-        httponly=True,
-        secure=True,
-        samesite="lax",
-        max_age=7 * 24 * 60 * 60
-    )
+    new_access_token, new_refresh_token = await auth_service.refresh_access_token(request.refresh_token)
     
     return SuccessResponse(
         message="Token refreshed successfully",
         data={
             "access_token": new_access_token,
+            "refresh_token": new_refresh_token,
             "token_type": "bearer"
         }
     )
