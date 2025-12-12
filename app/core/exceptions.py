@@ -177,7 +177,7 @@ def add_exception_handlers(app):
         error_code_map = {
             401: ErrorCode.INVALID_TOKEN,
             403: ErrorCode.PERMISSION_DENIED,
-            404: ErrorCode.USER_NOT_FOUND,
+            404: ErrorCode.RESOURCE_NOT_FOUND,
             429: ErrorCode.RATE_LIMIT_EXCEEDED,
         }
         

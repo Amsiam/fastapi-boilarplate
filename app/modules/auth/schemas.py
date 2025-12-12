@@ -68,6 +68,7 @@ class Token(BaseModel):
     """Token response."""
     access_token: str
     token_type: str = "bearer"
+    refresh_token: Optional[str] = None
 
 
 class TokenResponse(Token):

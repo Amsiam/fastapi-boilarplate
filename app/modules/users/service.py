@@ -53,7 +53,7 @@ class UserManagementService:
         if data.role_id:
             role = await self.role_repo.get(data.role_id)
             if not role:
-                 raise NotFoundError(message="Role not found")
+                 raise NotFoundError(error_code=ErrorCode.ROLE_NOT_FOUND, message="Role not found")
         else:
             role = await self.role_repo.get_by_name("ADMIN")
             if not role:
@@ -117,18 +117,6 @@ class UserManagementService:
         
         # Apply filters
         if filters:
-            # We need to handle filtering on both Admin and User models
-            # Simple heuristic: try both? Or separate?
-            # For now, let's try applying to User first (most common), then Admin
-            # But apply_filters on Joined query is tricky with multiple models.
-            # Best approach for joined query provided by apply_filters is to pass the primary model?
-            # Actually apply_filters takes 'model' to know fields.
-            # Let's manually apply for specific fields or iterate.
-            
-            # Better approach: 
-            # We can use apply_filters for User fields and Admin fields separately if we split the dict.
-            # Or just pass the specific model for specific keys.
-            
             user_filters = {}
             admin_filters = {}
             
@@ -173,7 +161,6 @@ class UserManagementService:
         # Or duplicate logic. Duplicating logic is safer for SQLModel.
         
         # Re-construct query for count or use subquery
-        # func.count() on subquery
         from sqlalchemy import func
         count_subquery = query.subquery()
         count_query = select(func.count()).select_from(count_subquery)
@@ -201,12 +188,14 @@ class UserManagementService:
 
     async def get_admin(self, admin_id: UUID) -> AdminDetailResponse:
         """Get admin by ID."""
-        query = select(Admin, User).join(User).where(Admin.id == admin_id)
+        query = select(Admin, User).join(User).where(
+            (Admin.id == admin_id) & (User.deleted_at == None)
+        )
         result = await self.session.execute(query)
         row = result.first()
         
         if not row:
-            raise NotFoundError(message="Admin not found")
+            raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Admin not found")
             
         admin, user = row
         return AdminDetailResponse(
@@ -225,7 +214,7 @@ class UserManagementService:
         # Check existence
         admin = await self.admin_repo.get(admin_id)
         if not admin:
-             raise NotFoundError(message="Admin not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Admin not found")
         
         # Protect super admin from editing (except password)
         if admin.is_super_admin:
@@ -247,7 +236,7 @@ class UserManagementService:
         if data.email and data.email != user.email:
             existing = await self.user_repo.get_by_email(data.email)
             if existing and existing.id != user.id:
-                 raise ConflictError(message="Email already in use")
+                 raise ConflictError(error_code=ErrorCode.USER_ALREADY_EXISTS, message="Email already in use")
             user_updates["email"] = data.email
             
         if data.password:
@@ -294,7 +283,7 @@ class UserManagementService:
         """Soft delete admin."""
         admin = await self.admin_repo.get(admin_id)
         if not admin:
-             raise NotFoundError(message="Admin not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Admin not found")
         
         # Protect super admin from deletion
         if admin.is_super_admin:
@@ -305,7 +294,7 @@ class UserManagementService:
              
         success = await self.user_repo.soft_delete(admin.user_id)
         if not success:
-             raise NotFoundError(message="User not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="User not found")
              
         # Invalidate Cache
         from app.core.cache import delete_cache, user_profile_key
@@ -429,12 +418,14 @@ class UserManagementService:
 
     async def get_customer(self, customer_id: UUID) -> CustomerDetailResponse:
         """Get customer by ID."""
-        query = select(Customer, User).join(User).where(Customer.id == customer_id)
+        query = select(Customer, User).join(User).where(
+            (Customer.id == customer_id) & (User.deleted_at == None)
+        )
         result = await self.session.execute(query)
         row = result.first()
         
         if not row:
-            raise NotFoundError(message="Customer not found")
+            raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Customer not found")
             
         customer, user = row
         return CustomerDetailResponse(
@@ -454,7 +445,7 @@ class UserManagementService:
         """Update customer."""
         customer = await self.customer_repo.get(customer_id)
         if not customer:
-             raise NotFoundError(message="Customer not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Customer not found")
         user = await self.user_repo.get(customer.user_id)
 
         old_values = {
@@ -468,7 +459,7 @@ class UserManagementService:
         if data.email and data.email != user.email:
             existing = await self.user_repo.get_by_email(data.email)
             if existing and existing.id != user.id:
-                 raise ConflictError(message="Email already in use")
+                 raise ConflictError(error_code=ErrorCode.USER_ALREADY_EXISTS, message="Email already in use")
             user_updates["email"] = data.email
         
         if data.password:
@@ -515,11 +506,11 @@ class UserManagementService:
         """Soft delete customer."""
         customer = await self.customer_repo.get(customer_id)
         if not customer:
-             raise NotFoundError(message="Customer not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="Customer not found")
              
         success = await self.user_repo.soft_delete(customer.user_id)
         if not success:
-             raise NotFoundError(message="User not found")
+             raise NotFoundError(error_code=ErrorCode.USER_NOT_FOUND, message="User not found")
              
         # Invalidate Cache
         from app.core.cache import delete_cache, user_profile_key

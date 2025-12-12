@@ -77,7 +77,9 @@ class OAuthProviderService:
             "id": str(created_provider.id),
             "name": created_provider.name,
             "display_name": created_provider.display_name,
-            "is_active": created_provider.is_active
+            "icon": created_provider.icon,
+            "is_active": created_provider.is_active,
+            "created_at": created_provider.created_at
         }
     
     async def list_providers(
